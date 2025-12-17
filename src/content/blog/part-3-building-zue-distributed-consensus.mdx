@@ -1,0 +1,125 @@
+---
+title: "Building Zue Part 3: Herding Cats (Distributed Consensus)"
+description: "How to make three computers agree on a number, and why I regret not just using SQLite."
+pubDate: "Dec 16 2025"
+---
+
+import Mermaid from "../../components/Mermaid.astro";
+
+## The "Herding Cats" Problem
+
+Writing to a file is easy (Part 1). Sending that file over a network is annoying (Part 2). But getting three computers to _agree_ on what that file contains? That is pure chaos.
+
+In Zue, I implemented **Raft** (or at least, a student's interpretation of it).
+
+<Mermaid
+  chart={`
+graph TD
+Client[Client App]
+subgraph Cluster [" "]
+Leader[Leader Node]
+F1[Follower 1]
+F2[Follower 2]
+end
+Client --> Leader
+Leader --> F1
+Leader --> F2
+style Client fill:#2a2a2a,stroke:#f9f,stroke-width:2px,color:#fff
+style Leader fill:#2a2a2a,stroke:#42b983,stroke-width:4px,color:#fff
+style F1 fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
+style F2 fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
+`}
+/>
+
+The rules are simple:
+
+1.  **One Leader**: The boss. Clients only talk to the boss.
+2.  **Quorum**: The boss can't promise anything until a majority (2 out of 3) agree.
+3.  **No Rollback**: Once something is committed, it stays committed. Like a bad tattoo.
+
+---
+
+## The Happy Path (When Nothing Breaks)
+
+In a perfect world, this happens:
+
+<Mermaid
+  chart={`
+sequenceDiagram
+participant C as Client
+participant L as Leader
+participant F as Follower
+C->>L: Append Record
+activate L
+L->>L: Append to Mmap
+par Parallel Replication
+L->>F: Replicate Entries
+activate F
+F->>F: Validate & Mmap Write
+F-->>L: Success match_index
+deactivate F
+and
+L->>L: Wait for Quorum
+end
+L->>L: Commit and Advance Index
+L-->>C: Success offset
+deactivate L
+`}
+/>
+
+The Leader writes locally (fast!), sends to followers (fast!), and waits. As soon as one follower says "Got it!", we have a majority (Leader + 1 Follower = 2/3). We commit.
+
+---
+
+## The "Oh No" Path (When Everything Breaks)
+
+What happens if a Follower goes offline, comes back 10 minutes later, and tries to join?
+
+It's missing 10,000 records.
+
+If I sent them all at once, the network would choke. If I blocked the Leader to help it, the whole cluster would die.
+
+### The Repair State Machine
+
+I built a background process called **`tickRepair`**. It runs every 2 seconds and checks for stragglers. If it finds one, it feeds it small batches of data (100 records at a time) until it catches up.
+
+<Mermaid chart={`
+flowchart TD
+Replicating[Background Repair: Every 2s]
+StreamSent[Repairing Stream Sent\n to lagging Follower/s]
+CheckReady{Response\nReady?}
+ReadResp[Read Response]
+UpdateState[Update Follower Offset]
+
+Replicating --> StreamSent
+StreamSent --> CheckReady
+CheckReady -->|Not Ready| CheckReady
+CheckReady -->|Ready| ReadResp
+ReadResp --> UpdateState
+UpdateState --> Replicating
+
+style Replicating fill:#2a2a2a,stroke:#42b983,stroke-width:4px,color:#fff
+style StreamSent fill:#2a2a2a,stroke:#64b5f6,stroke-width:4px,color:#fff
+style UpdateState fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
+style CheckReady fill:#2a2a2a,stroke:#fff,stroke-width:2px,color:#fff
+style ReadResp fill:#2a2a2a,stroke:#fff,stroke-width:2px,color:#fff
+`} />
+
+This allows Zue to self-heal. I can kill a node, restart it, and watch the logs as it frantically eats data until it's back in sync. It's oddly satisfying.
+
+---
+
+## Not so Final Final Thoughts (The Metrics)
+
+After **3,400+ lines of Zig** and too much caffeine:
+
+- **200+ Tests** (unit-test, integration-tests, stateful replication-tests over loopback network interface using different processes).
+- **Sub-millisecond writes** thanks to the `mmap` + append-only design.
+- **Zero Locks** in the hot path. Single-threaded event loops ftw.
+
+Was it harder than using SQLite? Yes.
+Did I learn more? Absolutely.
+
+If you want to read the code (or just roast it), it's all open source.
+
+**GitHub**: [github.com/lostcache/zue](https://github.com/lostcache/zue)

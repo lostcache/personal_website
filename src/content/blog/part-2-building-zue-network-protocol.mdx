@@ -1,0 +1,181 @@
+---
+title: "Building Zue Part 2: Networks Are Liars"
+description: "Why JSON is too slow, why TCP is not a mailbox, and how I reinvented the wheel (badly) before fixing it."
+pubDate: "Dec 16 2025"
+---
+
+import Mermaid from "../../components/Mermaid.astro";
+
+## The Protocol Problem
+
+When I started Zue, I thought: "I'll just use JSON! It's debuggable, easy, and everyone loves it."
+
+Then I realized that serializing `{ "key": "user:123", "value": "..." }` for every single request is:
+
+1.  **Slow**: String parsing is CPU-intensive.
+2.  **Verbose**: The keys take up ton of space than the data.
+
+So I went lower level. I designed a simple **Length-Prefixed Binary Protocol**.
+
+## The Packet Structure
+
+Every message in Zue looks exactly like this on the wire. No delimiters. No newlines. Just raw bytes.
+
+<Mermaid
+  chart={`
+graph LR
+    subgraph Packet ["Binary Packet Structure"]
+    direction LR
+    Len["Length (4 Bytes)<br/>(Little Endian)"]
+    Type["Type (1 Byte)<br/>(Enum)"]
+    Pay["Payload (Variable)<br/>(Protobuf / Struct)"]
+    end
+    
+    Len --> Type --> Pay
+    
+    style Len fill:#2a2a2a,stroke:#42b983,stroke-width:2px,color:#fff
+    style Type fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
+    style Pay fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
+`}
+/>
+
+Why length-prefixed? Because **TCP is a stream**.
+
+### The "Partial Read" Trap
+
+Beginners (read: me, two weeks ago) think that if you call `send("Hello")` on the client, you will receive "Hello" in one `recv()` call on the server.
+
+**Wrong.**
+
+You might get "Hel". Then "lo". Or you might get "HelloWor" if two messages got stuck together.
+
+Length prefixing solves this. My server reads 4 bytes first. It gets the number `50`. It then loops `read()` until exactly 50 bytes have arrived.
+
+<Mermaid
+  chart={`
+sequenceDiagram
+    participant Net as Network
+    participant Buf as App Buffer
+    
+    Net->>Buf: "Length: 50" (4 bytes)
+    Note right of Buf: App knows: Wait for 50 bytes.
+    
+    Net->>Buf: "Payload: Hello..." (10 bytes)
+    Note right of Buf: Total: 10/50. Keep reading.
+    
+    Net--xBuf: *Pause* (Network Lag)
+    
+    Net->>Buf: "...World!" (40 bytes)
+    Note right of Buf: Total: 50/50. Done!
+    
+    Buf->>App: Deserialize()
+`}
+/>
+
+---
+
+## The Async Event Loop
+
+The second biggest mistake I made was using blocking I/O.
+
+In v1, if a Follower node was slow to respond, the Leader would just... wait.
+The client would wait.
+The universe would wait.
+
+To fix this, I rewrote the entire engine to use a single-threaded **Event Loop** using `poll()`.
+
+### Leader Loop
+
+The Leader never blocks. It checks sockets. If they have data, it reads. If they don't, it moves on. It runs a `tickRepair` function periodically to fix broken followers in the background.
+
+<Mermaid chart={`
+flowchart LR
+    Start([Start Loop])
+    Timer{Timer\nExpired?\n2s interval}
+    Heartbeat[Send Heartbeats\nto Followers]
+    Repair[Run Repair Tick\ntickRepair]
+    Ready{POLL\nSockets Ready?}
+    Type{Socket\nType?}
+    Accept[Accept New\nConnection]
+    MsgType{Message\nType?}
+    Append[Append Request:\nReplicate with Quorum]
+    Read[Read Request:\nRead from Log]
+    Cleanup[Handle\nRetry/Success/Failure]
+
+    Start --> Ready
+    Timer -->|Yes| Heartbeat
+    Heartbeat --> Repair
+    Repair --> Start
+    Timer -->|No| Start
+    Ready -->|No| Timer
+    Ready -->|Yes| Type
+    Type -->|Listener| Accept
+    Type -->|Client| MsgType
+    Accept --> Cleanup
+    MsgType -->|Append| Append
+    MsgType -->|Read| Read
+    Append --> Cleanup
+    Read --> Cleanup
+    Cleanup --> Timer
+
+    style Start fill:#2a2a2a,stroke:#42b983,stroke-width:4px,color:#fff
+    style Heartbeat fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
+    style Repair fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
+    style Append fill:#2a2a2a,stroke:#ff6b6b,stroke-width:3px,color:#fff
+    style Timer fill:#2a2a2a,stroke:#fff,stroke-width:2px,color:#fff
+    style Ready fill:#2a2a2a,stroke:#fff,stroke-width:2px,color:#fff
+    style Type fill:#2a2a2a,stroke:#fff,stroke-width:2px,color:#fff
+    style MsgType fill:#2a2a2a,stroke:#fff,stroke-width:2px,color:#fff
+    style Accept fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
+    style Read fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
+    style Cleanup fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
+
+`} />
+
+### Follower Loop
+
+The Followers are simpler. They just do what they're told. If a client tries to write to them, they politely yell "I am not the Leader!" and close the door.
+
+<Mermaid chart={`
+flowchart LR
+    Start([Start Loop])
+    Ready{Sockets\nReady?}
+    Type{Socket\nType?}
+    Accept[Accept New\nConnection]
+    MsgType{Message\nType?}
+    ClientReq[Client Request:\nReject Redirect to Leader]
+    Replicate[Replicate Request:\nValidate Offset & Append]
+    Heartbeat[Heartbeat Request:\nUpdate Timestamp]
+    Cleanup[Send\nResponse]
+
+    Start --> Ready
+    Ready -->|No| Start
+    Ready -->|Yes| Type
+    Type -->|Listener| Accept
+    Type -->|Client| MsgType
+    Accept --> Cleanup
+    MsgType -->|Read| ClientReq
+    MsgType -->|Replicate| Replicate
+    MsgType -->|Heartbeat| Heartbeat
+    ClientReq --> Cleanup
+    Replicate --> Cleanup
+    Heartbeat --> Cleanup
+    Cleanup --> Start
+
+    style Start fill:#2a2a2a,stroke:#42b983,stroke-width:4px,color:#fff
+    style Replicate fill:#2a2a2a,stroke:#ffa500,stroke-width:3px,color:#fff
+    style Heartbeat fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
+    style ClientReq fill:#2a2a2a,stroke:#ff6b6b,stroke-width:2px,color:#fff
+    style Ready fill:#2a2a2a,stroke:#fff,stroke-width:2px,color:#fff
+    style Type fill:#2a2a2a,stroke:#fff,stroke-width:2px,color:#fff
+    style MsgType fill:#2a2a2a,stroke:#fff,stroke-width:2px,color:#fff
+    style Accept fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
+    style Cleanup fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
+
+`} />
+
+This architecture allowed Zue to handle **100+ concurrent clients** on a single thread. Blocking is a crime.
+
+---
+
+[**Next Up: Part 3 - Herding Cats (Distributed Consensus)**](/personal_website/blog/part-3-building-zue-distributed-consensus)

@@ -1,24 +1,236 @@
 ---
 import BaseHead from "../components/BaseHead.astro";
-import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
-import { SITE_DESCRIPTION, SITE_TITLE } from "../consts";
+import Footer from "../components/Footer.astro";
+import { SITE_TITLE, SITE_DESCRIPTION } from "../consts";
+import { getCollection } from "astro:content";
+import FormattedDate from "../components/FormattedDate.astro";
+
+const posts = (await getCollection("blog")).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+
+const zuePart1 = posts.find((p) => p.id.includes("part-1"));
+const zuePart2 = posts.find((p) => p.id.includes("part-2"));
+const zuePart3 = posts.find((p) => p.id.includes("part-3"));
+const otherPosts = posts.filter(
+  (p) =>
+    !p.id.includes("part-1") &&
+    !p.id.includes("part-2") &&
+    !p.id.includes("part-3")
+);
 ---
 
 <!doctype html>
 <html lang="en">
-    <head>
-        <BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
-    </head>
-    <body>
-        <Header />
-        <main>
-            <h3>Hi! I'm Harsh</h3>
-            <p>
-                I use this site to talk about what i'm currently working on and
-                as a public journal!
-            </p>
-        </main>
-        <Footer />
-    </body>
+  <head>
+    <BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
+    <style>
+      main {
+        width: 960px;
+        max-width: calc(100% - 2em);
+        margin: auto;
+        padding: 3em 1em;
+      }
+
+      .intro {
+        margin-bottom: 3em;
+        text-align: center;
+      }
+      .intro h1 {
+        font-size: 3em;
+        margin-bottom: 0.2em;
+      }
+      .intro p {
+        font-size: 1.2em;
+        color: var(--text-muted);
+      }
+
+      .bento-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+      }
+
+      .bento-item {
+        background: var(--gray-light);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-decoration: none;
+        color: var(--black);
+        transition:
+          transform 0.2s ease,
+          box-shadow 0.2s ease;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        overflow: hidden;
+      }
+
+      /* Dark mode adjustment */
+      :global([data-theme="dark"]) .bento-item {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        color: #fff;
+      }
+
+      .bento-item:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+      }
+
+      .bento-item h3 {
+        margin: 0;
+        font-size: 1.4rem;
+        line-height: 1.2;
+        margin-bottom: 0.5rem;
+      }
+
+      .bento-item p {
+        margin: 0;
+        font-size: 0.95rem;
+        color: var(--gray);
+        line-height: 1.4;
+      }
+
+      .bento-item .date {
+        font-size: 0.8rem;
+        color: var(--gray);
+        margin-top: 1rem;
+        opacity: 0.8;
+      }
+
+      /* Featured Item (Part 1) spans 2 cols */
+      .featured {
+        grid-column: 1 / -1;
+        background: linear-gradient(135deg, var(--gray-light) 0%, #e0e0e0 100%);
+        min-height: 250px;
+        position: relative;
+      }
+      :global([data-theme="dark"]) .featured {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+      }
+
+      .featured h3 {
+        font-size: 2.2rem;
+        margin-bottom: 1rem;
+      }
+
+      .featured p {
+        font-size: 1.1rem;
+        max-width: 80%;
+      }
+
+      .section-title {
+        text-align: left;
+        margin: 2rem 0 1rem;
+        font-size: 1.5rem;
+        border-bottom: 1px solid var(--gray-light);
+        padding-bottom: 0.5rem;
+      }
+
+      @media (max-width: 720px) {
+        .bento-grid {
+          grid-template-columns: 1fr;
+        }
+        .featured h3 {
+          font-size: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <Header />
+    <main>
+      <div class="intro">
+        <h1>Hi, I'm Harsh.</h1>
+        <p>
+          I build systems, break kernels, Implement the exact same thing in
+          differnt langauges, then write about it.
+        </p>
+      </div>
+
+      <h2 class="section-title">Recent Blogs</h2>
+
+      <div class="bento-grid">
+        {
+          zuePart1 && (
+            <a
+              href={`${import.meta.env.BASE_URL}/blog/${zuePart1.id}/`}
+              class="bento-item featured"
+            >
+              <div>
+                <h3>{zuePart1.data.title}</h3>
+                <p>{zuePart1.data.description}</p>
+              </div>
+              <div class="date">
+                <FormattedDate date={zuePart1.data.pubDate} />
+              </div>
+            </a>
+          )
+        }
+
+        {
+          zuePart2 && (
+            <a
+              href={`${import.meta.env.BASE_URL}/blog/${zuePart2.id}/`}
+              class="bento-item"
+            >
+              <div>
+                <h3>{zuePart2.data.title}</h3>
+                <p>{zuePart2.data.description}</p>
+              </div>
+              <div class="date">
+                <FormattedDate date={zuePart2.data.pubDate} />
+              </div>
+            </a>
+          )
+        }
+
+        {
+          zuePart3 && (
+            <a
+              href={`${import.meta.env.BASE_URL}/blog/${zuePart3.id}/`}
+              class="bento-item"
+            >
+              <div>
+                <h3>{zuePart3.data.title}</h3>
+                <p>{zuePart3.data.description}</p>
+              </div>
+              <div class="date">
+                <FormattedDate date={zuePart3.data.pubDate} />
+              </div>
+            </a>
+          )
+        }
+      </div>
+
+      {
+        otherPosts.length > 0 && (
+          <>
+            <h2 class="section-title">More Writing</h2>
+            <div class="bento-grid">
+              {otherPosts.map((post) => (
+                <a
+                  href={`${import.meta.env.BASE_URL}/blog/${post.id}/`}
+                  class="bento-item"
+                >
+                  <div>
+                    <h3>{post.data.title}</h3>
+                    <p>{post.data.description}</p>
+                  </div>
+                  <div class="date">
+                    <FormattedDate date={post.data.pubDate} />
+                  </div>
+                </a>
+              ))}
+            </div>
+          </>
+        )
+      }
+    </main>
+    <Footer />
+  </body>
 </html>
