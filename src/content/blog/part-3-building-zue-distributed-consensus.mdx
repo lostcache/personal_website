@@ -4,32 +4,32 @@ description: "How to make three computers agree on a number, and why I regret no
 pubDate: "Dec 16 2025"
 ---
 
-import Mermaid from "../../components/Mermaid.astro";
+import Mermaid from '../../components/Mermaid.astro';
 
 ## The "Herding Cats" Problem
+
 
 Writing to a file is easy (Part 1). Sending that file over a network is annoying (Part 2). But getting three computers to _agree_ on what that file contains? That is pure chaos.
 
 In Zue, I implemented **Raft** (or at least, a student's interpretation of it).
 
-<Mermaid
-  chart={`
-graph TD
-Client[Client App]
-subgraph Cluster [" "]
-Leader[Leader Node]
-F1[Follower 1]
-F2[Follower 2]
-end
-Client --> Leader
-Leader --> F1
-Leader --> F2
-style Client fill:#2a2a2a,stroke:#f9f,stroke-width:2px,color:#fff
-style Leader fill:#2a2a2a,stroke:#42b983,stroke-width:4px,color:#fff
-style F1 fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
-style F2 fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
-`}
-/>
+<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'18px'}, 'flowchart':{'nodeSpacing': 80, 'rankSpacing': 80}}}%%
+flowchart TD
+    Client[Client App]
+    subgraph Cluster [" "]
+        Leader[Leader Node]
+        F1[Follower 1]
+        F2[Follower 2]
+    end
+    Client --> Leader
+    Leader --> F1
+    Leader --> F2
+    style Client fill:transparent,stroke:#ec4899,stroke-width:3px
+    style Leader fill:transparent,stroke:#10b981,stroke-width:4px
+    style F1 fill:transparent,stroke:#3b82f6,stroke-width:3px
+    style F2 fill:transparent,stroke:#3b82f6,stroke-width:3px
+    style Cluster fill:transparent,stroke:#6366f1,stroke-width:2px`} />
+
 
 The rules are simple:
 
@@ -43,29 +43,27 @@ The rules are simple:
 
 In a perfect world, this happens:
 
-<Mermaid
-  chart={`
+<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'16px'}}}%%
 sequenceDiagram
-participant C as Client
-participant L as Leader
-participant F as Follower
-C->>L: Append Record
-activate L
-L->>L: Append to Mmap
-par Parallel Replication
-L->>F: Replicate Entries
-activate F
-F->>F: Validate & Mmap Write
-F-->>L: Success match_index
-deactivate F
-and
-L->>L: Wait for Quorum
-end
-L->>L: Commit and Advance Index
-L-->>C: Success offset
-deactivate L
-`}
-/>
+    participant C as Client
+    participant L as Leader
+    participant F as Follower
+    C->>L: Append Record
+    activate L
+    L->>L: Append to Mmap
+    par Parallel Replication
+    L->>F: Replicate Entries
+    activate F
+    F->>F: Validate & Mmap Write
+    F-->>L: Success match_index
+    deactivate F
+    and
+    L->>L: Wait for Quorum
+    end
+    L->>L: Commit and Advance Index
+    L-->>C: Success offset
+    deactivate L`} />
+
 
 The Leader writes locally (fast!), sends to followers (fast!), and waits. As soon as one follower says "Got it!", we have a majority (Leader + 1 Follower = 2/3). We commit.
 
@@ -83,27 +81,27 @@ If I sent them all at once, the network would choke. If I blocked the Leader to 
 
 I built a background process called **`tickRepair`**. It runs every 2 seconds and checks for stragglers. If it finds one, it feeds it small batches of data (100 records at a time) until it catches up.
 
-<Mermaid chart={`
+<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'16px'}, 'flowchart':{'nodeSpacing': 70, 'rankSpacing': 70}}}%%
 flowchart TD
-Replicating[Background Repair: Every 2s]
-StreamSent[Repairing Stream Sent\n to lagging Follower/s]
-CheckReady{Response\nReady?}
-ReadResp[Read Response]
-UpdateState[Update Follower Offset]
+    Replicating[Background Repair: Every 2s]
+    StreamSent["Repairing Stream Sent<br/>to lagging Follower/s"]
+    CheckReady{"Response<br/>Ready?"}
+    ReadResp[Read Response]
+    UpdateState[Update Follower Offset]
 
-Replicating --> StreamSent
-StreamSent --> CheckReady
-CheckReady -->|Not Ready| CheckReady
-CheckReady -->|Ready| ReadResp
-ReadResp --> UpdateState
-UpdateState --> Replicating
+    Replicating --> StreamSent
+    StreamSent --> CheckReady
+    CheckReady -->|"Not Ready"| CheckReady
+    CheckReady -->|"Ready"| ReadResp
+    ReadResp --> UpdateState
+    UpdateState --> Replicating
 
-style Replicating fill:#2a2a2a,stroke:#42b983,stroke-width:4px,color:#fff
-style StreamSent fill:#2a2a2a,stroke:#64b5f6,stroke-width:4px,color:#fff
-style UpdateState fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
-style CheckReady fill:#2a2a2a,stroke:#fff,stroke-width:2px,color:#fff
-style ReadResp fill:#2a2a2a,stroke:#fff,stroke-width:2px,color:#fff
-`} />
+    style Replicating fill:transparent,stroke:#10b981,stroke-width:4px
+    style StreamSent fill:transparent,stroke:#3b82f6,stroke-width:4px
+    style UpdateState fill:transparent,stroke:#3b82f6,stroke-width:3px
+    style CheckReady fill:transparent,stroke:#8b5cf6,stroke-width:3px
+    style ReadResp fill:transparent,stroke:#8b5cf6,stroke-width:3px`} />
+
 
 This allows Zue to self-heal. I can kill a node, restart it, and watch the logs as it frantically eats data until it's back in sync. It's oddly satisfying.
 

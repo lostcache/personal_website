@@ -4,7 +4,8 @@
   License MIT: https://github.com/HermanMartinus/bearblog/blob/master/LICENSE.md
  */
 
-:root {
+:root,
+[data-theme="light"] {
   --accent: #2337ff;
   --accent-dark: #000d8a;
   --black: 15, 18, 25;

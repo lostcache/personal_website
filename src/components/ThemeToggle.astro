@@ -64,12 +64,7 @@
         const currentTheme = element.getAttribute('data-theme');
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
 
-        if (newTheme === 'dark') {
-            element.setAttribute('data-theme', 'dark');
-        } else {
-            element.removeAttribute('data-theme');
-        }
-
+        element.setAttribute('data-theme', newTheme);
         localStorage.setItem('theme', newTheme);
     };
 

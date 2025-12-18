@@ -6,7 +6,10 @@ pubDate: 'Dec 16 2025'
 
 import Mermaid from '../../components/Mermaid.astro';
 
+
+
 ## The "Oh No" Moment
+
 
 It was 3 AM. My OS kernel assignment was "working." I had processes switching context. I had a networking stack that… technically networked. 
 
@@ -32,65 +35,65 @@ When you "update" a key in Zue, we don't go back and change the old value. we ju
 
 Here is how Zue actually organizes bytes on disk. It's not just one giant file—it's a series of specified **Segments**.
 
-<Mermaid chart={`
-graph LR
-subgraph Log [Log]
-direction TB
-S1[Segment 0]
-S2[Segment 1]
-S3[Segment ...]
-end
+<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'18px'}, 'flowchart':{'nodeSpacing': 80, 'rankSpacing': 80}}}%%
+flowchart LR
+    subgraph Log [Log]
+        direction TB
+        S1[Segment 0]
+        S2[Segment 1]
+        S3[Segment ...]
+    end
 
-subgraph Segment [Segment]
-direction TB
-IndexFile[Index File]
-LogFile[Log File]
-end
+    subgraph Segment [Segment]
+        direction TB
+        IndexFile[Index File]
+        LogFile[Log File]
+    end
 
-subgraph Index ["Index Entry (12B)"]
-direction TB
-I_CRC["CRC (4B)"]
-I_Off["Rel Offset (4B)"]
-I_Pos["Position (4B)"]
-end
+    subgraph Index ["Index Entry (12B)"]
+        direction TB
+        I_CRC["CRC (4B)"]
+        I_Off["Rel Offset (4B)"]
+        I_Pos["Position (4B)"]
+    end
 
-subgraph Record ["Log Record (20B Header)"]
-direction TB
-R_CRC["CRC (4B)"]
-R_TS["Timestamp (8B)"]
-R_Key_Len["Key len (4B)"]
-R_Key["Key"]
-R_Val_Len["Value len (4B)"]
-R_Val["Value"]
-end
+    subgraph Record ["Log Record (20B Header)"]
+        direction TB
+        R_CRC["CRC (4B)"]
+        R_TS["Timestamp (8B)"]
+        R_Key_Len["Key len (4B)"]
+        R_Key["Key"]
+        R_Val_Len["Value len (4B)"]
+        R_Val["Value"]
+    end
 
-S2 --> Segment
-IndexFile --> Index
-LogFile --> Record
+    S2 --> Segment
+    IndexFile --> Index
+    LogFile --> Record
 
-style Log fill:transparent,stroke:#fff,stroke-width:2px,color:#fff
-style Segment fill:transparent,stroke:#fff,stroke-width:2px,color:#fff
-style Index fill:transparent,stroke:#fff,stroke-width:2px,color:#fff
-style Record fill:transparent,stroke:#fff,stroke-width:2px,color:#fff
+    style Log fill:transparent,stroke:#6366f1,stroke-width:3px
+    style Segment fill:transparent,stroke:#6366f1,stroke-width:3px
+    style Index fill:transparent,stroke:#6366f1,stroke-width:3px
+    style Record fill:transparent,stroke:#6366f1,stroke-width:3px
 
-style S1 fill:#2a2a2a,stroke:#42b983,stroke-width:2px,color:#fff
-style S2 fill:#2a2a2a,stroke:#42b983,stroke-width:4px,color:#fff
-style S3 fill:#2a2a2a,stroke:#42b983,stroke-width:2px,color:#fff
+    style S1 fill:transparent,stroke:#10b981,stroke-width:3px
+    style S2 fill:transparent,stroke:#10b981,stroke-width:4px
+    style S3 fill:transparent,stroke:#10b981,stroke-width:3px
 
-style IndexFile fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
-style LogFile fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
+    style IndexFile fill:transparent,stroke:#3b82f6,stroke-width:3px
+    style LogFile fill:transparent,stroke:#3b82f6,stroke-width:3px
 
-style I_Off fill:#2a2a2a,stroke:#ff6b6b,stroke-width:2px,color:#fff
-style I_Pos fill:#2a2a2a,stroke:#ff6b6b,stroke-width:2px,color:#fff
-style I_CRC fill:#2a2a2a,stroke:#ff6b6b,stroke-width:2px,color:#fff
+    style I_Off fill:transparent,stroke:#ef4444,stroke-width:3px
+    style I_Pos fill:transparent,stroke:#ef4444,stroke-width:3px
+    style I_CRC fill:transparent,stroke:#ef4444,stroke-width:3px
 
-style R_CRC fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
-style R_TS fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
-style R_Key_Len fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
-style R_Key fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
-style R_Val_Len fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
-style R_Val fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
-`} />
+    style R_CRC fill:transparent,stroke:#f59e0b,stroke-width:3px
+    style R_TS fill:transparent,stroke:#f59e0b,stroke-width:3px
+    style R_Key_Len fill:transparent,stroke:#f59e0b,stroke-width:3px
+    style R_Key fill:transparent,stroke:#f59e0b,stroke-width:3px
+    style R_Val_Len fill:transparent,stroke:#f59e0b,stroke-width:3px
+    style R_Val fill:transparent,stroke:#f59e0b,stroke-width:3px`} />
+
 
 Why segments? Because deleting a 10TB file to free up space is... not graceful. Deleting a 1GB segment file involving old data? Instant.
 
@@ -126,107 +129,108 @@ I wanted speed.
 
 Enter `mmap` (memory-mapped I/O, aka the "Trust Me Bro" card). It lets you pretend a file on disk is just an array in RAM. You want to read byte 4000? `data[4000]`. You want to write? `data[5000] = 0xFF`. The OS handles the dirty work of flushing pages to disk.
 
-<Mermaid chart={`
-graph TB
-App["Application Code\nptr = mmap(file)"]
+<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'16px'}, 'flowchart':{'nodeSpacing': 60, 'rankSpacing': 50}}}%%
+flowchart TB
+    App["Application Code<br/>ptr = mmap(file)"]
 
-subgraph Disk ["DISK"]
-F0["[0] 0x41"]
-F1["[1] 0x42"]
-F2["[2] 0x43"]
-F3["[3] 0x44"]
-end
+    subgraph Disk ["DISK"]
+        F0["[0] 0x41"]
+        F1["[1] 0x42"]
+        F2["[2] 0x43"]
+        F3["[3] 0x44"]
+    end
 
-Map["mmap() creates\nmapping"]
+    Map["mmap() creates<br/>mapping"]
 
-subgraph RAM ["PHYSICAL RAM"]
-R0["0x41"]
-R1["0x42"]
-R2["0x43"]
-R3["0x44"]
-end
+    subgraph RAM ["PHYSICAL RAM"]
+        R0["0x41"]
+        R1["0x42"]
+        R2["0x43"]
+        R3["0x44"]
+    end
 
-Ptr["ptr[0], ptr[1], ptr[2], ptr[3]\nDirect pointer access\nNO syscalls!"]
+    Ptr["ptr[0], ptr[1], ptr[2], ptr[3]<br/>Direct pointer access<br/>NO syscalls!"]
 
-Write["ptr[2] = 0xFF"]
+    Write["ptr[2] = 0xFF"]
 
-subgraph RAM2 ["RAM AFTER WRITE"]
-R20["0x41"]
-R21["0x42"]
-R22["0xFF"]
-R23["0x44"]
-end
+    subgraph RAM2 ["RAM AFTER WRITE"]
+        R20["0x41"]
+        R21["0x42"]
+        R22["0xFF"]
+        R23["0x44"]
+    end
 
-Sync["OS syncs\ndirty pages"]
+    Sync["OS syncs<br/>dirty pages"]
 
-subgraph Disk2 ["DISK AFTER SYNC"]
-F20["[0] 0x41"]
-F21["[1] 0x42"]
-F22["[2] 0xFF"]
-F23["[3] 0x44"]
-end
+    subgraph Disk2 ["DISK AFTER SYNC"]
+        F20["[0] 0x41"]
+        F21["[1] 0x42"]
+        F22["[2] 0xFF"]
+        F23["[3] 0x44"]
+    end
 
-App --> Map
-F0 -.-> Map
-F1 -.-> Map
-F2 -.-> Map
-F3 -.-> Map
+    App --> Map
+    F0 -.-> Map
+    F1 -.-> Map
+    F2 -.-> Map
+    F3 -.-> Map
 
-Map --> R0
-Map --> R1
-Map --> R2
-Map --> R3
+    Map --> R0
+    Map --> R1
+    Map --> R2
+    Map --> R3
 
-R0 --> Ptr
-R1 --> Ptr
-R2 --> Ptr
-R3 --> Ptr
+    R0 --> Ptr
+    R1 --> Ptr
+    R2 --> Ptr
+    R3 --> Ptr
 
-Ptr --> Write
+    Ptr --> Write
 
-Write --> R20
-Write --> R21
-Write --> R22
-Write --> R23
+    Write --> R20
+    Write --> R21
+    Write --> R22
+    Write --> R23
 
-R22 --> Sync
+    R22 --> Sync
 
-Sync --> F20
-Sync --> F21
-Sync --> F22
-Sync --> F23
+    Sync --> F20
+    Sync --> F21
+    Sync --> F22
+    Sync --> F23
 
-style App fill:#2a2a2a,stroke:#fff,stroke-width:3px,color:#fff
-style Map fill:#2a2a2a,stroke:#42b983,stroke-width:3px,color:#fff
-style Ptr fill:#2a2a2a,stroke:#42b983,stroke-width:3px,color:#fff
-style Write fill:#2a2a2a,stroke:#ffa500,stroke-width:3px,color:#fff
-style Sync fill:#2a2a2a,stroke:#42b983,stroke-width:2px,color:#fff
+    style App fill:transparent,stroke:#8b5cf6,stroke-width:3px
+    style Map fill:transparent,stroke:#10b981,stroke-width:3px
+    style Ptr fill:transparent,stroke:#10b981,stroke-width:3px
+    style Write fill:transparent,stroke:#f59e0b,stroke-width:3px
+    style Sync fill:transparent,stroke:#10b981,stroke-width:3px
 
-style Disk fill:transparent,stroke:#64b5f6,stroke-width:2px,color:#fff
-style RAM fill:transparent,stroke:#ffa500,stroke-width:3px,color:#fff
-style RAM2 fill:transparent,stroke:#ffa500,stroke-width:3px,color:#fff
-style Disk2 fill:transparent,stroke:#42b983,stroke-width:2px,color:#fff
+    style Disk fill:transparent,stroke:#3b82f6,stroke-width:3px
+    style RAM fill:transparent,stroke:#f59e0b,stroke-width:3px
+    style RAM2 fill:transparent,stroke:#f59e0b,stroke-width:3px
+    style Disk2 fill:transparent,stroke:#10b981,stroke-width:3px
 
-style F0 fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
-style F1 fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
-style F2 fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
-style F3 fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
+    style F0 fill:transparent,stroke:#3b82f6,stroke-width:3px
+    style F1 fill:transparent,stroke:#3b82f6,stroke-width:3px
+    style F2 fill:transparent,stroke:#3b82f6,stroke-width:3px
+    style F3 fill:transparent,stroke:#3b82f6,stroke-width:3px
 
-style R0 fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
-style R1 fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
-style R2 fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
-style R3 fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
+    style R0 fill:transparent,stroke:#f59e0b,stroke-width:3px
+    style R1 fill:transparent,stroke:#f59e0b,stroke-width:3px
+    style R2 fill:transparent,stroke:#f59e0b,stroke-width:3px
+    style R3 fill:transparent,stroke:#f59e0b,stroke-width:3px
 
-style R20 fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
-style R21 fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
-style R22 fill:#2a2a2a,stroke:#ff0000,stroke-width:3px,color:#fff
-style R23 fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
+    style R20 fill:transparent,stroke:#f59e0b,stroke-width:3px
+    style R21 fill:transparent,stroke:#f59e0b,stroke-width:3px
+    style R22 fill:transparent,stroke:#ef4444,stroke-width:4px
+    style R23 fill:transparent,stroke:#f59e0b,stroke-width:3px
 
-style F20 fill:#2a2a2a,stroke:#42b983,stroke-width:2px,color:#fff
-style F21 fill:#2a2a2a,stroke:#42b983,stroke-width:2px,color:#fff
-style F22 fill:#2a2a2a,stroke:#ff0000,stroke-width:3px,color:#fff
-style F23 fill:#2a2a2a,stroke:#42b983,stroke-width:2px,color:#fff
+    style F20 fill:transparent,stroke:#10b981,stroke-width:3px
+    style F21 fill:transparent,stroke:#10b981,stroke-width:3px
+    style F22 fill:transparent,stroke:#ef4444,stroke-width:4px
+    style F23 fill:transparent,stroke:#10b981,stroke-width:3px
 `} />
+
 
 
 ### The macOS Trap

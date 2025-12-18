@@ -1,103 +1,62 @@
 ---
-interface Props {
+export interface Props {
   chart: string;
 }
-
 const { chart } = Astro.props;
-const id = `mermaid-${Math.random().toString(36).substring(7)}`;
-const content = chart.trim();
+const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
 ---
 
-<div class="mermaid-container">
-  <div id={id} class="mermaid" set:html={content} />
-</div>
-
-<style>
-  .mermaid-container {
-    margin: 2em 0;
-    padding: 1.5em;
-    background: rgb(var(--gray-light));
-    border-radius: 8px;
-    overflow-x: auto;
-  }
-
-  .mermaid {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 200px;
-  }
-
-  :global([data-theme="dark"]) .mermaid-container {
-    background: rgba(var(--gray-light), 0.3);
-  }
-</style>
+<div class="mermaid" id={id} data-original={chart}>{chart}</div>
 
 <script>
-  import mermaid from "mermaid";
+  import mermaid from 'mermaid';
 
-  // We need to wait for the DOM to be fully loaded
-  async function renderDiagrams() {
-    try {
-      // Configuration
-      const isDark =
-        document.documentElement.getAttribute("data-theme") === "dark";
+  const renderMermaid = async () => {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const theme = isDark ? 'dark' : 'default';
 
-      mermaid.initialize({
-        startOnLoad: false,
-        theme: "base",
-        themeVariables: {
-          primaryColor: isDark ? "#2a2a2a" : "#f9f9f9",
-          primaryTextColor: isDark ? "#fff" : "#333",
-          primaryBorderColor: isDark ? "#42b983" : "#333",
-          lineColor: "#64b5f6",
-          secondaryColor: isDark ? "#1a1d25" : "#e3f2fd",
-          tertiaryColor: isDark ? "#2a2a2a" : "#fff",
-          fontSize: "16px",
-        },
-        darkMode: isDark,
-      });
-
-      // Run on all elements with .mermaid class
-      // We use querySelectorAll and cast to any to bypass the specific TS error regarding Element vs HTMLElement
-      // Mermaid's run API handles NodeList fine in recent versions, or we pass selector.
-      // Passing selector is safest.
-      const nodes = document.querySelectorAll(".mermaid");
-      if (nodes.length > 0) {
-        // @ts-ignore
-        await mermaid.run({ nodes: nodes });
+    // Update all diagrams to use current theme
+    document.querySelectorAll('.mermaid:not([data-processed])').forEach(el => {
+      const original = el.getAttribute('data-original');
+      if (original && original.includes("'theme':'base'")) {
+        const updated = original.replace(/'theme':'base'/, `'theme':'${theme}'`);
+        el.innerHTML = updated;
       }
-    } catch (err) {
-      console.error("Mermaid rendering failed:", err);
-    }
-  }
+    });
 
-  // Initial render
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", renderDiagrams);
+    mermaid.initialize({
+      startOnLoad: false
+    });
+
+    const diagrams = document.querySelectorAll('.mermaid:not([data-processed])');
+    if (diagrams.length > 0) {
+      await mermaid.run({ nodes: Array.from(diagrams) });
+    }
+  };
+
+  const reRender = async () => {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const theme = isDark ? 'dark' : 'default';
+
+    document.querySelectorAll('.mermaid[data-processed]').forEach(el => {
+      const original = el.getAttribute('data-original');
+      if (original) {
+        el.removeAttribute('data-processed');
+        const updated = original.replace(/'theme':'base'/, `'theme':'${theme}'`);
+        el.innerHTML = updated;
+      }
+    });
+    await renderMermaid();
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', renderMermaid);
   } else {
-    renderDiagrams();
+    renderMermaid();
   }
 
-  // Handle View Transitions (if enabled in future) or Theme Toggles
-  // A simple mutation observer on the html element for theme changes
-  const observer = new MutationObserver(() => {
-    // When theme changes, we might want to re-render.
-    // However, mermaid doesn't support easy re-rendering of same nodes without resetting them.
-    // For now, reloading the page is the cleanest way to switch themes for diagrams,
-    // but we can try to re-run.
-    const nodes = document.querySelectorAll('.mermaid[data-processed="true"]');
-    if (nodes.length > 0) {
-      // Optional: logic to clear and re-render could go here
-      // For now, simpler is safer: do nothing and let user refresh if needed,
-      // OR try to re-run.
-      // renderDiagrams();
-    }
-  });
-
-  observer.observe(document.documentElement, {
+  new MutationObserver(reRender).observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ["data-theme"],
+    attributeFilter: ['data-theme']
   });
 </script>
-```

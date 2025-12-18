@@ -4,9 +4,12 @@ description: "Why JSON is too slow, why TCP is not a mailbox, and how I reinvent
 pubDate: "Dec 16 2025"
 ---
 
-import Mermaid from "../../components/Mermaid.astro";
+import Mermaid from '../../components/Mermaid.astro';
+
+
 
 ## The Protocol Problem
+
 
 When I started Zue, I thought: "I'll just use JSON! It's debuggable, easy, and everyone loves it."
 
@@ -21,23 +24,22 @@ So I went lower level. I designed a simple **Length-Prefixed Binary Protocol**.
 
 Every message in Zue looks exactly like this on the wire. No delimiters. No newlines. Just raw bytes.
 
-<Mermaid
-  chart={`
-graph LR
+<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'16px'}, 'flowchart':{'nodeSpacing': 60, 'rankSpacing': 60}}}%%
+flowchart LR
     subgraph Packet ["Binary Packet Structure"]
-    direction LR
-    Len["Length (4 Bytes)<br/>(Little Endian)"]
-    Type["Type (1 Byte)<br/>(Enum)"]
-    Pay["Payload (Variable)<br/>(Protobuf / Struct)"]
+        direction LR
+        Len["Length (4 Bytes)<br/>(Little Endian)"]
+        Type["Type (1 Byte)<br/>(Enum)"]
+        Pay["Payload (Variable)<br/>(Protobuf / Struct)"]
     end
-    
     Len --> Type --> Pay
     
-    style Len fill:#2a2a2a,stroke:#42b983,stroke-width:2px,color:#fff
-    style Type fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
-    style Pay fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
-`}
-/>
+    style Len fill:transparent,stroke:#10b981,stroke-width:3px
+    style Type fill:transparent,stroke:#f59e0b,stroke-width:3px
+    style Pay fill:transparent,stroke:#3b82f6,stroke-width:3px
+    style Packet fill:transparent,stroke:#6366f1,stroke-width:2px
+`} />
+
 
 Why length-prefixed? Because **TCP is a stream**.
 
@@ -51,8 +53,7 @@ You might get "Hel". Then "lo". Or you might get "HelloWor" if two messages got 
 
 Length prefixing solves this. My server reads 4 bytes first. It gets the number `50`. It then loops `read()` until exactly 50 bytes have arrived.
 
-<Mermaid
-  chart={`
+<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'16px'}}}%%
 sequenceDiagram
     participant Net as Network
     participant Buf as App Buffer
@@ -69,8 +70,8 @@ sequenceDiagram
     Note right of Buf: Total: 50/50. Done!
     
     Buf->>App: Deserialize()
-`}
-/>
+`} />
+
 
 ---
 
@@ -88,91 +89,91 @@ To fix this, I rewrote the entire engine to use a single-threaded **Event Loop**
 
 The Leader never blocks. It checks sockets. If they have data, it reads. If they don't, it moves on. It runs a `tickRepair` function periodically to fix broken followers in the background.
 
-<Mermaid chart={`
+<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'16px'}, 'flowchart':{'nodeSpacing': 70, 'rankSpacing': 70}}}%%
 flowchart LR
     Start([Start Loop])
-    Timer{Timer\nExpired?\n2s interval}
-    Heartbeat[Send Heartbeats\nto Followers]
-    Repair[Run Repair Tick\ntickRepair]
-    Ready{POLL\nSockets Ready?}
-    Type{Socket\nType?}
-    Accept[Accept New\nConnection]
-    MsgType{Message\nType?}
-    Append[Append Request:\nReplicate with Quorum]
-    Read[Read Request:\nRead from Log]
-    Cleanup[Handle\nRetry/Success/Failure]
+    Timer{"Timer<br/>Expired?<br/>2s interval"}
+    Heartbeat["Send Heartbeats<br/>to Followers"]
+    Repair["Run Repair Tick<br/>tickRepair"]
+    Ready{"POLL<br/>Sockets Ready?"}
+    Type{"Socket<br/>Type?"}
+    Accept["Accept New<br/>Connection"]
+    MsgType{"Message<br/>Type?"}
+    Append["Append Request:<br/>Replicate with Quorum"]
+    Read["Read Request:<br/>Read from Log"]
+    Cleanup["Handle<br/>Retry/Success/Failure"]
 
     Start --> Ready
-    Timer -->|Yes| Heartbeat
+    Timer -->|"Yes"| Heartbeat
     Heartbeat --> Repair
     Repair --> Start
-    Timer -->|No| Start
-    Ready -->|No| Timer
-    Ready -->|Yes| Type
-    Type -->|Listener| Accept
-    Type -->|Client| MsgType
+    Timer -->|"No"| Start
+    Ready -->|"No"| Timer
+    Ready -->|"Yes"| Type
+    Type -->|"Listener"| Accept
+    Type -->|"Client"| MsgType
     Accept --> Cleanup
-    MsgType -->|Append| Append
-    MsgType -->|Read| Read
+    MsgType -->|"Append"| Append
+    MsgType -->|"Read"| Read
     Append --> Cleanup
     Read --> Cleanup
     Cleanup --> Timer
 
-    style Start fill:#2a2a2a,stroke:#42b983,stroke-width:4px,color:#fff
-    style Heartbeat fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
-    style Repair fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
-    style Append fill:#2a2a2a,stroke:#ff6b6b,stroke-width:3px,color:#fff
-    style Timer fill:#2a2a2a,stroke:#fff,stroke-width:2px,color:#fff
-    style Ready fill:#2a2a2a,stroke:#fff,stroke-width:2px,color:#fff
-    style Type fill:#2a2a2a,stroke:#fff,stroke-width:2px,color:#fff
-    style MsgType fill:#2a2a2a,stroke:#fff,stroke-width:2px,color:#fff
-    style Accept fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
-    style Read fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
-    style Cleanup fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
-
+    style Start fill:transparent,stroke:#10b981,stroke-width:4px
+    style Heartbeat fill:transparent,stroke:#f59e0b,stroke-width:3px
+    style Repair fill:transparent,stroke:#f59e0b,stroke-width:3px
+    style Append fill:transparent,stroke:#ef4444,stroke-width:4px
+    style Timer fill:transparent,stroke:#8b5cf6,stroke-width:3px
+    style Ready fill:transparent,stroke:#8b5cf6,stroke-width:3px
+    style Type fill:transparent,stroke:#8b5cf6,stroke-width:3px
+    style MsgType fill:transparent,stroke:#8b5cf6,stroke-width:3px
+    style Accept fill:transparent,stroke:#3b82f6,stroke-width:3px
+    style Read fill:transparent,stroke:#3b82f6,stroke-width:3px
+    style Cleanup fill:transparent,stroke:#3b82f6,stroke-width:3px
 `} />
+
 
 ### Follower Loop
 
 The Followers are simpler. They just do what they're told. If a client tries to write to them, they politely yell "I am not the Leader!" and close the door.
 
-<Mermaid chart={`
+<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'16px'}, 'flowchart':{'nodeSpacing': 70, 'rankSpacing': 70}}}%%
 flowchart LR
     Start([Start Loop])
-    Ready{Sockets\nReady?}
-    Type{Socket\nType?}
-    Accept[Accept New\nConnection]
-    MsgType{Message\nType?}
-    ClientReq[Client Request:\nReject Redirect to Leader]
-    Replicate[Replicate Request:\nValidate Offset & Append]
-    Heartbeat[Heartbeat Request:\nUpdate Timestamp]
-    Cleanup[Send\nResponse]
+    Ready{"Sockets<br/>Ready?"}
+    Type{"Socket<br/>Type?"}
+    Accept["Accept New<br/>Connection"]
+    MsgType{"Message<br/>Type?"}
+    ClientReq["Client Request:<br/>Reject Redirect to Leader"]
+    Replicate["Replicate Request:<br/>Validate Offset & Append"]
+    Heartbeat["Heartbeat Request:<br/>Update Timestamp"]
+    Cleanup["Send<br/>Response"]
 
     Start --> Ready
-    Ready -->|No| Start
-    Ready -->|Yes| Type
-    Type -->|Listener| Accept
-    Type -->|Client| MsgType
+    Ready -->|"No"| Start
+    Ready -->|"Yes"| Type
+    Type -->|"Listener"| Accept
+    Type -->|"Client"| MsgType
     Accept --> Cleanup
-    MsgType -->|Read| ClientReq
-    MsgType -->|Replicate| Replicate
-    MsgType -->|Heartbeat| Heartbeat
+    MsgType -->|"Read"| ClientReq
+    MsgType -->|"Replicate"| Replicate
+    MsgType -->|"Heartbeat"| Heartbeat
     ClientReq --> Cleanup
     Replicate --> Cleanup
     Heartbeat --> Cleanup
     Cleanup --> Start
 
-    style Start fill:#2a2a2a,stroke:#42b983,stroke-width:4px,color:#fff
-    style Replicate fill:#2a2a2a,stroke:#ffa500,stroke-width:3px,color:#fff
-    style Heartbeat fill:#2a2a2a,stroke:#ffa500,stroke-width:2px,color:#fff
-    style ClientReq fill:#2a2a2a,stroke:#ff6b6b,stroke-width:2px,color:#fff
-    style Ready fill:#2a2a2a,stroke:#fff,stroke-width:2px,color:#fff
-    style Type fill:#2a2a2a,stroke:#fff,stroke-width:2px,color:#fff
-    style MsgType fill:#2a2a2a,stroke:#fff,stroke-width:2px,color:#fff
-    style Accept fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
-    style Cleanup fill:#2a2a2a,stroke:#64b5f6,stroke-width:2px,color:#fff
-
+    style Start fill:transparent,stroke:#10b981,stroke-width:4px
+    style Replicate fill:transparent,stroke:#f59e0b,stroke-width:4px
+    style Heartbeat fill:transparent,stroke:#f59e0b,stroke-width:3px
+    style ClientReq fill:transparent,stroke:#ef4444,stroke-width:3px
+    style Ready fill:transparent,stroke:#8b5cf6,stroke-width:3px
+    style Type fill:transparent,stroke:#8b5cf6,stroke-width:3px
+    style MsgType fill:transparent,stroke:#8b5cf6,stroke-width:3px
+    style Accept fill:transparent,stroke:#3b82f6,stroke-width:3px
+    style Cleanup fill:transparent,stroke:#3b82f6,stroke-width:3px
 `} />
+
 
 This architecture allowed Zue to handle **100+ concurrent clients** on a single thread. Blocking is a crime.
 

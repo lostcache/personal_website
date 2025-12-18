@@ -35,11 +35,7 @@ const { title, description, image = FallbackImage } = Astro.props;
     return "light";
   })();
 
-  if (theme === "dark") {
-    document.documentElement.setAttribute("data-theme", "dark");
-  } else {
-    document.documentElement.removeAttribute("data-theme");
-  }
+  document.documentElement.setAttribute("data-theme", theme);
 </script>
 <link rel="sitemap" href="/sitemap-index.xml" />
 <link

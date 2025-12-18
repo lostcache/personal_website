@@ -5,7 +5,7 @@ import mdx from "@astrojs/mdx";
 import sitemap from "@astrojs/sitemap";
 import { defineConfig } from "astro/config";
 
-import { remarkReadingTime } from './remark-reading-time.mjs';
+import { remarkReadingTime } from "./remark-reading-time.mjs";
 
 // https://astro.build/config
 export default defineConfig({
@@ -13,10 +13,12 @@ export default defineConfig({
   integrations: [
     expressiveCode({
       styleOverrides: {
-        codeFontSize: '15px',
+        codeFontSize: "15px",
       },
     }),
     mdx({
-    remarkPlugins: [remarkReadingTime],
-  }), sitemap()],
+      remarkPlugins: [remarkReadingTime],
+    }),
+    sitemap(),
+  ],
 });
