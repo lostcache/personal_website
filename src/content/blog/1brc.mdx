@@ -1,0 +1,124 @@
+---
+title: "My Take on the 1🐝🏎️ Challenge"
+description: "My attempt at the legendary 1🐝🏎️ challenge. (No CPUs were harmed in the making of this blog post. RAM? Maybe.)"
+pubDate: "Dec 16 2025"
+---
+
+import Mermaid from "../../components/Mermaid.astro";
+
+### Why?
+
+All my life (read: since I was `{current_age_dec_2026 - 2}` years old), I’ve wanted a job where I could ignore business logic and just make things go _brrrrr_.
+
+The **1 Billion Row Challenge** (1BRC) was the perfect excuse to commit unholy levels of premature optimization—without crashing production.
+
+So, here we go.
+
+### Attempt 1: The "It Works" Approach
+
+I’ve learned the hard way like, _really_ hard way—to start simple.
+
+For Attempt 1, I kept it dead simple. Zero optimization. Just me, raw C++, and a desire to understand the problem components. The best way to do that? Implement the "dumb" version.
+
+**Result:** It runs in **~630s**.
+
+**TODO**: Refactor below code to adhere to SIP and for a better flamegraph
+
+```cpp title="main.cpp"
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <limits.h>
+#include <limits>
+#include <map>
+#include <sstream>
+#include <string>
+
+struct LocationStats {
+    std::float_t min = std::numeric_limits<float>::max();
+    std::float_t max = std::numeric_limits<float>::lowest();
+    double sum = 0;
+    int freq = 0;
+};
+
+int main() {
+    std::ifstream f("../data/measurements.txt");
+
+    std::map<std::string, LocationStats> m;
+    std::string s;
+    while (std::getline(f, s)) {
+        std::istringstream ss(s);
+
+        std::string location;
+        std::getline(ss, location, ';');
+
+        std::string tempString;
+        std::getline(ss, tempString, ';');
+        std::float_t temperature = std::stof(tempString);
+
+        LocationStats* locationStat = &m[location];
+        locationStat->min = std::fmin(locationStat->min, temperature);
+        locationStat->max = std::fmax(locationStat->max, temperature);
+        locationStat->freq++;
+        locationStat->sum += temperature;
+    }
+
+    std::string outBuffer;
+    outBuffer.reserve(8 * 1024 * 1024);
+
+    bool first = true;
+    outBuffer += "{";
+    for (const auto& [loc, stat] : m) {
+        char buf[32];
+        if (!first) outBuffer += ", ";
+        outBuffer += loc;
+        outBuffer += "=";
+        std::snprintf(buf, sizeof(buf), "%.1f/%.1f/%.1f", stat.min, stat.sum / stat.freq, stat.max);
+        outBuffer += buf;
+        first = false;
+    }
+    outBuffer += "}\n";
+
+    std::cout << outBuffer;
+
+    return EXIT_SUCCESS;
+}
+```
+
+---
+
+The 2024 version of me would probably just throw standard optimizations at this and hope for the best. But we're doing science here. I want to know exactly _why_ it's taking so long and where the bottleneck lives so we can target our efforts.
+
+Time for a Flamegraph.
+
+If you don't know [Brendan Gregg](https://www.brendangregg.com/index.html), stop reading this and go read [his blog](https://www.brendangregg.com/overview.html). He is practically the patron saint of systems performance.
+
+I used his legendary `flamegraph.pl` toolset (from [his repo](https://github.com/brendangregg/FlameGraph/)) to visualize the stack traces.
+
+```bash title="flamegraph.sh"
+# Compile with optimizations and debug symbols
+clang++ -std=c++23 -O2 -Wall -fsanitize=undefined -o main main.cpp
+
+# Capture stack traces using DTrace (requires sudo)
+# Sampling at 997Hz to avoid lockstep aliasing
+sudo dtrace -c './main' \
+    -o out.stacks \
+    -n 'profile-997 /execname == "main"/ { @[ustack(100)] = count(); }'
+
+# Generate the flamegraph
+./stackcollapse.pl out.stacks | ./flamegraph.pl > flamegraph.svg
+```
+
+<br />
+
+the graph is interactive, feel free to poke around.
+
+<object
+  type="image/svg+xml"
+  data="/1brc_sol_1_flamegraph.svg"
+  style={{ width: "100%" }}
+></object>
+
+### More comming soonish...

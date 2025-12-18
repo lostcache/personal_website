@@ -9,16 +9,6 @@ import FormattedDate from "../components/FormattedDate.astro";
 const posts = (await getCollection("blog")).sort(
   (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
 );
-
-const zuePart1 = posts.find((p) => p.id.includes("part-1"));
-const zuePart2 = posts.find((p) => p.id.includes("part-2"));
-const zuePart3 = posts.find((p) => p.id.includes("part-3"));
-const otherPosts = posts.filter(
-  (p) =>
-    !p.id.includes("part-1") &&
-    !p.id.includes("part-2") &&
-    !p.id.includes("part-3")
-);
 ---
 
 <!doctype html>
@@ -156,80 +146,22 @@ const otherPosts = posts.filter(
 
       <div class="bento-grid">
         {
-          zuePart1 && (
+          posts.map((post, index) => (
             <a
-              href={`${import.meta.env.BASE_URL}/blog/${zuePart1.id}/`}
-              class="bento-item featured"
+              href={`/blog/${post.id}/`}
+              class={`bento-item ${index === 0 ? "featured" : ""}`}
             >
               <div>
-                <h3>{zuePart1.data.title}</h3>
-                <p>{zuePart1.data.description}</p>
+                <h3>{post.data.title}</h3>
+                <p>{post.data.description}</p>
               </div>
               <div class="date">
-                <FormattedDate date={zuePart1.data.pubDate} />
+                <FormattedDate date={post.data.pubDate} />
               </div>
             </a>
-          )
-        }
-
-        {
-          zuePart2 && (
-            <a
-              href={`${import.meta.env.BASE_URL}/blog/${zuePart2.id}/`}
-              class="bento-item"
-            >
-              <div>
-                <h3>{zuePart2.data.title}</h3>
-                <p>{zuePart2.data.description}</p>
-              </div>
-              <div class="date">
-                <FormattedDate date={zuePart2.data.pubDate} />
-              </div>
-            </a>
-          )
-        }
-
-        {
-          zuePart3 && (
-            <a
-              href={`${import.meta.env.BASE_URL}/blog/${zuePart3.id}/`}
-              class="bento-item"
-            >
-              <div>
-                <h3>{zuePart3.data.title}</h3>
-                <p>{zuePart3.data.description}</p>
-              </div>
-              <div class="date">
-                <FormattedDate date={zuePart3.data.pubDate} />
-              </div>
-            </a>
-          )
+          ))
         }
       </div>
-
-      {
-        otherPosts.length > 0 && (
-          <>
-            <h2 class="section-title">More Writing</h2>
-            <div class="bento-grid">
-              {otherPosts.map((post) => (
-                <a
-                  href={`${import.meta.env.BASE_URL}/blog/${post.id}/`}
-                  class="bento-item"
-                >
-                  <div>
-                    <h3>{post.data.title}</h3>
-                    <p>{post.data.description}</p>
-                  </div>
-                  <div class="date">
-                    <FormattedDate date={post.data.pubDate} />
-                  </div>
-                </a>
-              ))}
-            </div>
-          </>
-        )
-      }
     </main>
     <Footer />
   </body>
