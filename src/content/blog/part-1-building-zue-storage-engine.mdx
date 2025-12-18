@@ -1,23 +1,20 @@
 ---
-title: 'Building Zue Part 1: Files Are Just Arrays (If You''re Brave)'
+title: "Building Zue Part 1: Files Are Just Arrays (If You're Brave)"
 description: "Why I ditched an OS kernel for a database, and how memory-mapped I/O made me question reality. Part 1 of the Building Zue series."
-pubDate: 'Dec 16 2025'
+pubDate: "Dec 16 2025"
 ---
 
-import Mermaid from '../../components/Mermaid.astro';
-
-
+import Mermaid from "../../components/Mermaid.astro";
 
 ## The "Oh No" Moment
 
-
-It was 3 AM. My OS kernel assignment was "working." I had processes switching context. I had a networking stack that… technically networked. 
+It was 3 AM. My OS kernel assignment was "working." I had processes switching context. I had a networking stack that… technically networked.
 
 But I was bored.
 
-For this project I wanted to learn how *computers talk to other computers* without setting the server room on fire. I wanted to know why Kafka is so fast and why S3 never loses my cat photos.
+For this project I wanted to learn how _computers talk to other computers_ without setting the server room on fire. I wanted to know why Kafka is so fast and why S3 never loses my cat photos.
 
-So I did the logical thing: I threw away my kernel (I had a ton of fun, definitely picking it up later) and decided to build a distributed storage engine in **Zig**. 
+So I did the logical thing: I threw away my kernel (I had a ton of fun, definitely picking it up later) and decided to build a distributed storage engine in **Zig**.
 
 I call it **Zue**. This is Part 1 of my journey, where I learn that files are actually just arrays, and the OS is hiding things from me.
 
@@ -94,7 +91,6 @@ flowchart LR
     style R_Val_Len fill:transparent,stroke:#f59e0b,stroke-width:3px
     style R_Val fill:transparent,stroke:#f59e0b,stroke-width:3px`} />
 
-
 Why segments? Because deleting a 10TB file to free up space is... not graceful. Deleting a 1GB segment file involving old data? Instant.
 
 ---
@@ -106,9 +102,10 @@ If you have a 10GB log file, how do you find key "user:123"?
 1.  **Scan everything?** O(N). Too slow.
 2.  **Index every key?** O(1). Too much RAM.
 
-Zue uses a **Sparse Index**. We only write down the location of every *Nth* record (specifically, every 4KB of data).
+Zue uses a **Sparse Index**. We only write down the location of every _Nth_ record (specifically, every 4KB of data).
 
 To find "Banana":
+
 1.  Check the index. "Banana" is between "Apple" (Offset 1000) and "Cat" (Offset 5000).
 2.  Jump to Offset 1000.
 3.  Scan forward linearly until you hit "Banana".
@@ -229,9 +226,8 @@ flowchart TB
     style F21 fill:transparent,stroke:#10b981,stroke-width:3px
     style F22 fill:transparent,stroke:#ef4444,stroke-width:4px
     style F23 fill:transparent,stroke:#10b981,stroke-width:3px
+
 `} />
-
-
 
 ### The macOS Trap
 
@@ -242,6 +238,7 @@ In macOS? **`mremap` does not exist.**
 I found this out the hard way: `segfault`.
 
 To make Zue work on my MacBook, I had to implement a workaround:
+
 1.  Check if write will exceed mapping.
 2.  `munmap` (Un-map the whole file). (Scary).
 3.  `ftruncate` (Grow the file).

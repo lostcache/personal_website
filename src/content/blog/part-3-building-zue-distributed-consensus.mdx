@@ -4,16 +4,16 @@ description: "How to make three computers agree on a number, and why I regret no
 pubDate: "Dec 16 2025"
 ---
 
-import Mermaid from '../../components/Mermaid.astro';
+import Mermaid from "../../components/Mermaid.astro";
 
 ## The "Herding Cats" Problem
-
 
 Writing to a file is easy (Part 1). Sending that file over a network is annoying (Part 2). But getting three computers to _agree_ on what that file contains? That is pure chaos.
 
 In Zue, I implemented **Raft** (or at least, a student's interpretation of it).
 
-<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'18px'}, 'flowchart':{'nodeSpacing': 80, 'rankSpacing': 80}}}%%
+<Mermaid
+  chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'18px'}, 'flowchart':{'nodeSpacing': 80, 'rankSpacing': 80}}}%%
 flowchart TD
     Client[Client App]
     subgraph Cluster [" "]
@@ -28,8 +28,8 @@ flowchart TD
     style Leader fill:transparent,stroke:#10b981,stroke-width:4px
     style F1 fill:transparent,stroke:#3b82f6,stroke-width:3px
     style F2 fill:transparent,stroke:#3b82f6,stroke-width:3px
-    style Cluster fill:transparent,stroke:#6366f1,stroke-width:2px`} />
-
+    style Cluster fill:transparent,stroke:#6366f1,stroke-width:2px`}
+/>
 
 The rules are simple:
 
@@ -43,7 +43,8 @@ The rules are simple:
 
 In a perfect world, this happens:
 
-<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'16px'}}}%%
+<Mermaid
+  chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'16px'}}}%%
 sequenceDiagram
     participant C as Client
     participant L as Leader
@@ -62,8 +63,8 @@ sequenceDiagram
     end
     L->>L: Commit and Advance Index
     L-->>C: Success offset
-    deactivate L`} />
-
+    deactivate L`}
+/>
 
 The Leader writes locally (fast!), sends to followers (fast!), and waits. As soon as one follower says "Got it!", we have a majority (Leader + 1 Follower = 2/3). We commit.
 
@@ -101,7 +102,6 @@ flowchart TD
     style UpdateState fill:transparent,stroke:#3b82f6,stroke-width:3px
     style CheckReady fill:transparent,stroke:#8b5cf6,stroke-width:3px
     style ReadResp fill:transparent,stroke:#8b5cf6,stroke-width:3px`} />
-
 
 This allows Zue to self-heal. I can kill a node, restart it, and watch the logs as it frantically eats data until it's back in sync. It's oddly satisfying.
 

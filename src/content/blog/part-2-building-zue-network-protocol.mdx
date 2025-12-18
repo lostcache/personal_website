@@ -4,12 +4,9 @@ description: "Why JSON is too slow, why TCP is not a mailbox, and how I reinvent
 pubDate: "Dec 16 2025"
 ---
 
-import Mermaid from '../../components/Mermaid.astro';
-
-
+import Mermaid from "../../components/Mermaid.astro";
 
 ## The Protocol Problem
-
 
 When I started Zue, I thought: "I'll just use JSON! It's debuggable, easy, and everyone loves it."
 
@@ -24,7 +21,8 @@ So I went lower level. I designed a simple **Length-Prefixed Binary Protocol**.
 
 Every message in Zue looks exactly like this on the wire. No delimiters. No newlines. Just raw bytes.
 
-<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'16px'}, 'flowchart':{'nodeSpacing': 60, 'rankSpacing': 60}}}%%
+<Mermaid
+  chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'16px'}, 'flowchart':{'nodeSpacing': 60, 'rankSpacing': 60}}}%%
 flowchart LR
     subgraph Packet ["Binary Packet Structure"]
         direction LR
@@ -38,8 +36,8 @@ flowchart LR
     style Type fill:transparent,stroke:#f59e0b,stroke-width:3px
     style Pay fill:transparent,stroke:#3b82f6,stroke-width:3px
     style Packet fill:transparent,stroke:#6366f1,stroke-width:2px
-`} />
-
+`}
+/>
 
 Why length-prefixed? Because **TCP is a stream**.
 
@@ -53,7 +51,8 @@ You might get "Hel". Then "lo". Or you might get "HelloWor" if two messages got 
 
 Length prefixing solves this. My server reads 4 bytes first. It gets the number `50`. It then loops `read()` until exactly 50 bytes have arrived.
 
-<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'16px'}}}%%
+<Mermaid
+  chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'16px'}}}%%
 sequenceDiagram
     participant Net as Network
     participant Buf as App Buffer
@@ -70,8 +69,8 @@ sequenceDiagram
     Note right of Buf: Total: 50/50. Done!
     
     Buf->>App: Deserialize()
-`} />
-
+`}
+/>
 
 ---
 
@@ -130,8 +129,8 @@ flowchart LR
     style Accept fill:transparent,stroke:#3b82f6,stroke-width:3px
     style Read fill:transparent,stroke:#3b82f6,stroke-width:3px
     style Cleanup fill:transparent,stroke:#3b82f6,stroke-width:3px
-`} />
 
+`} />
 
 ### Follower Loop
 
@@ -172,8 +171,8 @@ flowchart LR
     style MsgType fill:transparent,stroke:#8b5cf6,stroke-width:3px
     style Accept fill:transparent,stroke:#3b82f6,stroke-width:3px
     style Cleanup fill:transparent,stroke:#3b82f6,stroke-width:3px
-`} />
 
+`} />
 
 This architecture allowed Zue to handle **100+ concurrent clients** on a single thread. Blocking is a crime.
 
