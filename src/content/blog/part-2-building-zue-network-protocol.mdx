@@ -88,7 +88,7 @@ To fix this, I rewrote the entire engine to use a single-threaded **Event Loop**
 
 The Leader never blocks. It checks sockets. If they have data, it reads. If they don't, it moves on. It runs a `tickRepair` function periodically to fix broken followers in the background.
 
-<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'16px'}, 'flowchart':{'nodeSpacing': 70, 'rankSpacing': 70}}}%%
+<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'30px'}, 'flowchart':{'nodeSpacing': 30, 'rankSpacing': 30}}}%%
 flowchart LR
     Start([Start Loop])
     Timer{"Timer<br/>Expired?<br/>2s interval"}
@@ -136,7 +136,7 @@ flowchart LR
 
 The Followers are simpler. They just do what they're told. If a client tries to write to them, they politely yell "I am not the Leader!" and close the door.
 
-<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'16px'}, 'flowchart':{'nodeSpacing': 70, 'rankSpacing': 70}}}%%
+<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'30px'}, 'flowchart':{'nodeSpacing': 30, 'rankSpacing': 30}}}%%
 flowchart LR
     Start([Start Loop])
     Ready{"Sockets<br/>Ready?"}

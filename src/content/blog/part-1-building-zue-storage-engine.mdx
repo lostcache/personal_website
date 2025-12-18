@@ -32,7 +32,7 @@ When you "update" a key in Zue, we don't go back and change the old value. we ju
 
 Here is how Zue actually organizes bytes on disk. It's not just one giant file—it's a series of specified **Segments**.
 
-<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'18px'}, 'flowchart':{'nodeSpacing': 80, 'rankSpacing': 80}}}%%
+<Mermaid chart={`%%{init: {'theme':'base', 'themeVariables': {'fontSize':'23px'}, 'flowchart':{'nodeSpacing': 40, 'rankSpacing': 40}}}%%
 flowchart LR
     subgraph Log [Log]
         direction TB
@@ -54,7 +54,7 @@ flowchart LR
         I_Pos["Position (4B)"]
     end
 
-    subgraph Record ["Log Record (20B Header)"]
+    subgraph Record ["Log Record"]
         direction TB
         R_CRC["CRC (4B)"]
         R_TS["Timestamp (8B)"]
