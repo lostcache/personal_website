@@ -46,27 +46,23 @@
         }
     }
 
+    // Set initial theme when giscus loads
+    window.addEventListener('message', (event) => {
+        if (event.origin !== 'https://giscus.app') return;
+        if (event.data.giscus?.discussion) {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            setGiscusTheme(currentTheme === 'dark' ? 'dark' : 'light');
+        }
+    });
+
     // Update giscus theme when our theme changes
-    const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            if (mutation.attributeName === 'data-theme') {
-                const theme = document.documentElement.getAttribute('data-theme');
-                setGiscusTheme(theme || 'light');
-            }
-        });
+    const observer = new MutationObserver(() => {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        setGiscusTheme(currentTheme === 'dark' ? 'dark' : 'light');
     });
 
     observer.observe(document.documentElement, {
         attributes: true,
         attributeFilter: ['data-theme']
-    });
-
-    // Set initial theme when giscus loads
-    window.addEventListener('message', (event) => {
-        if (event.origin !== 'https://giscus.app') return;
-        if (event.data.giscus?.discussion) {
-            const theme = document.documentElement.getAttribute('data-theme');
-            setGiscusTheme(theme || 'light');
-        }
     });
 </script>
