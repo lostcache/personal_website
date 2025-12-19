@@ -35,34 +35,13 @@ For Attempt 1, I kept it dead simple. Zero optimization. Just me, raw C++, and a
 #include <string>
 
 struct LocationStats {
-    std::float_t min = std::numeric_limits<float>::max();
-    std::float_t max = std::numeric_limits<float>::lowest();
+    double min = std::numeric_limits<double>::max();
+    double max = std::numeric_limits<double>::lowest();
     double sum = 0;
     int freq = 0;
 };
 
-int main() {
-    std::ifstream f("../data/measurements.txt");
-
-    std::map<std::string, LocationStats> m;
-    std::string s;
-    while (std::getline(f, s)) {
-        std::istringstream ss(s);
-
-        std::string location;
-        std::getline(ss, location, ';');
-
-        std::string tempString;
-        std::getline(ss, tempString, ';');
-        std::float_t temperature = std::stof(tempString);
-
-        LocationStats* locationStat = &m[location];
-        locationStat->min = std::fmin(locationStat->min, temperature);
-        locationStat->max = std::fmax(locationStat->max, temperature);
-        locationStat->freq++;
-        locationStat->sum += temperature;
-    }
-
+void printResults(const std::map<std::string, LocationStats>& m) {
     std::string outBuffer;
     outBuffer.reserve(8 * 1024 * 1024);
 
@@ -80,6 +59,48 @@ int main() {
     outBuffer += "}\n";
 
     std::cout << outBuffer;
+}
+
+std::pair<std::string, double> parseLine(const std::string& line) {
+    std::istringstream ss(line);
+
+    std::string location, tempString;
+    std::getline(ss, location, ';');
+    std::getline(ss, tempString, ';');
+    double temperature = std::stod(tempString);
+
+    return {location, temperature};
+}
+
+void updateStats(const std::string& location, const double& temperature,
+                 std::map<std::string, LocationStats>& m) {
+    LocationStats* locationStat = &m[location];
+    locationStat->min = std::fmin(locationStat->min, temperature);
+    locationStat->max = std::fmax(locationStat->max, temperature);
+    locationStat->freq++;
+    locationStat->sum += temperature;
+}
+
+std::map<std::string, LocationStats> accumulate(std::ifstream& f) {
+    std::map<std::string, LocationStats> m;
+    std::string tempBuffer;
+    while (std::getline(f, tempBuffer)) {
+        auto [location, temperature] = parseLine(tempBuffer);
+        updateStats(location, temperature, m);
+    }
+    return m;
+}
+
+void oneBrc() {
+    std::ifstream f("../data/measurements.txt");
+
+    std::map<std::string, LocationStats> m = accumulate(f);
+
+    printResults(m);
+}
+
+int main() {
+    oneBrc();
 
     return EXIT_SUCCESS;
 }
@@ -95,18 +116,20 @@ If you don't know [Brendan Gregg](https://www.brendangregg.com/index.html), stop
 
 I used his legendary `flamegraph.pl` toolset (from [his repo](https://github.com/brendangregg/FlameGraph/)) to visualize the stack traces.
 
-```bash title="flamegraph.sh"
-# Compile with optimizations and debug symbols
-clang++ -std=c++23 -O2 -Wall -fsanitize=undefined -o main main.cpp
+```bash title="flamegraph_linux.sh"
+rm -f main out.perf perf.data perf.data.old flamegraph.svg
 
-# Capture stack traces using DTrace (requires sudo)
-# Sampling at 997Hz to avoid lockstep aliasing
-sudo dtrace -c './main' \
-    -o out.stacks \
-    -n 'profile-997 /execname == "main"/ { @[ustack(100)] = count(); }'
+clang++ -std=c++23 -O2 -g -fno-omit-frame-pointer -Werror -Wall -o main main.cpp
+
+# Record stack samples (requires sudo or perf_event_paranoid relaxed)
+sudo perf record -F 997 -g -- ./main
+
+# Convert perf data to folded stacks
+perf script > out.perf
+./stackcollapse-perf.pl out.perf > out.folded
 
 # Generate the flamegraph
-./stackcollapse.pl out.stacks | ./flamegraph.pl > flamegraph.svg
+./flamegraph.pl out.folded > flamegraph.svg
 ```
 
 <br />
