@@ -46,8 +46,8 @@ body {
   word-wrap: break-word;
   overflow-wrap: break-word;
   color: rgb(var(--gray-dark));
-  font-size: 21px;
-  line-height: 1.58;
+  font-size: 18px;
+  line-height: 1.6;
   transition:
     background-color 0.3s ease,
     color 0.3s ease;
