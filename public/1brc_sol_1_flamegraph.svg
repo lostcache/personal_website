@@ -1,63 +1,147 @@
 <?xml version="1.0" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg version="1.1" width="1200" height="310" onload="init(evt)" viewBox="0 0 1200 310" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<svg version="1.1" width="1200" height="646" onload="init(evt)" viewBox="0 0 1200 646" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 <!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
 <!-- NOTES:  -->
-<defs >
+<defs>
 	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
 		<stop stop-color="#eeeeee" offset="5%" />
 		<stop stop-color="#eeeeb0" offset="95%" />
 	</linearGradient>
 </defs>
 <style type="text/css">
-	.func_g:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+	text { font-family:Verdana; font-size:12px; fill:rgb(0,0,0); }
+	#search, #ignorecase { opacity:0.1; cursor:pointer; }
+	#search:hover, #search.show, #ignorecase:hover, #ignorecase.show { opacity:1; }
+	#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+	#title { text-anchor:middle; font-size:17px}
+	#unzoom { cursor:pointer; }
+	#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+	.hide { display:none; }
+	.parent { opacity:0.5; }
 </style>
 <script type="text/ecmascript">
 <![CDATA[
-	var details, searchbtn, matchedtxt, svg;
+	"use strict";
+	var details, searchbtn, unzoombtn, matchedtxt, svg, searching, currentSearchTerm, ignorecase, ignorecaseBtn;
 	function init(evt) {
 		details = document.getElementById("details").firstChild;
 		searchbtn = document.getElementById("search");
+		ignorecaseBtn = document.getElementById("ignorecase");
+		unzoombtn = document.getElementById("unzoom");
 		matchedtxt = document.getElementById("matched");
 		svg = document.getElementsByTagName("svg")[0];
 		searching = 0;
+		currentSearchTerm = null;
+
+		// use GET parameters to restore a flamegraphs state.
+		var params = get_params();
+		if (params.x && params.y)
+			zoom(find_group(document.querySelector('[x="' + params.x + '"][y="' + params.y + '"]')));
+                if (params.s) search(params.s);
 	}
+
+	// event listeners
+	window.addEventListener("click", function(e) {
+		var target = find_group(e.target);
+		if (target) {
+			if (target.nodeName == "a") {
+				if (e.ctrlKey === false) return;
+				e.preventDefault();
+			}
+			if (target.classList.contains("parent")) unzoom(true);
+			zoom(target);
+			if (!document.querySelector('.parent')) {
+				// we have basically done a clearzoom so clear the url
+				var params = get_params();
+				if (params.x) delete params.x;
+				if (params.y) delete params.y;
+				history.replaceState(null, null, parse_params(params));
+				unzoombtn.classList.add("hide");
+				return;
+			}
+
+			// set parameters for zoom state
+			var el = target.querySelector("rect");
+			if (el && el.attributes && el.attributes.y && el.attributes._orig_x) {
+				var params = get_params()
+				params.x = el.attributes._orig_x.value;
+				params.y = el.attributes.y.value;
+				history.replaceState(null, null, parse_params(params));
+			}
+		}
+		else if (e.target.id == "unzoom") clearzoom();
+		else if (e.target.id == "search") search_prompt();
+		else if (e.target.id == "ignorecase") toggle_ignorecase();
+	}, false)
 
 	// mouse-over for info
-	function s(node) {		// show
-		info = g_to_text(node);
-		details.nodeValue = "Function: " + info;
-	}
-	function c() {			// clear
-		details.nodeValue = ' ';
-	}
+	// show
+	window.addEventListener("mouseover", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = "Function: " + g_to_text(target);
+	}, false)
+
+	// clear
+	window.addEventListener("mouseout", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = ' ';
+	}, false)
 
 	// ctrl-F for search
+	// ctrl-I to toggle case-sensitive search
 	window.addEventListener("keydown",function (e) {
 		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
 			e.preventDefault();
 			search_prompt();
 		}
-	})
+		else if (e.ctrlKey && e.keyCode === 73) {
+			e.preventDefault();
+			toggle_ignorecase();
+		}
+	}, false)
 
 	// functions
-	function find_child(parent, name, attr) {
-		var children = parent.childNodes;
-		for (var i=0; i<children.length;i++) {
-			if (children[i].tagName == name)
-				return (attr != undefined) ? children[i].attributes[attr].value : children[i];
+	function get_params() {
+		var params = {};
+		var paramsarr = window.location.search.substr(1).split('&');
+		for (var i = 0; i < paramsarr.length; ++i) {
+			var tmp = paramsarr[i].split("=");
+			if (!tmp[0] || !tmp[1]) continue;
+			params[tmp[0]]  = decodeURIComponent(tmp[1]);
 		}
-		return;
+		return params;
+	}
+	function parse_params(params) {
+		var uri = "?";
+		for (var key in params) {
+			uri += key + '=' + encodeURIComponent(params[key]) + '&';
+		}
+		if (uri.slice(-1) == "&")
+			uri = uri.substring(0, uri.length - 1);
+		if (uri == '?')
+			uri = window.location.href.split('?')[0];
+		return uri;
+	}
+	function find_child(node, selector) {
+		var children = node.querySelectorAll(selector);
+		if (children.length) return children[0];
+	}
+	function find_group(node) {
+		var parent = node.parentElement;
+		if (!parent) return;
+		if (parent.id == "frames") return node;
+		return find_group(parent);
 	}
 	function orig_save(e, attr, val) {
-		if (e.attributes["_orig_"+attr] != undefined) return;
+		if (e.attributes["_orig_" + attr] != undefined) return;
 		if (e.attributes[attr] == undefined) return;
 		if (val == undefined) val = e.attributes[attr].value;
-		e.setAttribute("_orig_"+attr, val);
+		e.setAttribute("_orig_" + attr, val);
 	}
 	function orig_load(e, attr) {
 		if (e.attributes["_orig_"+attr] == undefined) return;
-		e.attributes[attr].value = e.attributes["_orig_"+attr].value;
+		e.attributes[attr].value = e.attributes["_orig_" + attr].value;
 		e.removeAttribute("_orig_"+attr);
 	}
 	function g_to_text(e) {
@@ -73,24 +157,28 @@
 	function update_text(e) {
 		var r = find_child(e, "rect");
 		var t = find_child(e, "text");
-		var w = parseFloat(r.attributes["width"].value) -3;
+		var w = parseFloat(r.attributes.width.value) -3;
 		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
-		t.attributes["x"].value = parseFloat(r.attributes["x"].value) +3;
+		t.attributes.x.value = parseFloat(r.attributes.x.value) + 3;
 
 		// Smaller than this size won't fit anything
-		if (w < 2*12*0.59) {
+		if (w < 2 * 12 * 0.59) {
 			t.textContent = "";
 			return;
 		}
 
 		t.textContent = txt;
-		// Fit in full text width
-		if (/^ *$/.test(txt) || t.getSubStringLength(0, txt.length) < w)
+		var sl = t.getSubStringLength(0, txt.length);
+		// check if only whitespace or if we can fit the entire string into width w
+		if (/^ *$/.test(txt) || sl < w)
 			return;
 
-		for (var x=txt.length-2; x>0; x--) {
-			if (t.getSubStringLength(0, x+2) <= w) {
-				t.textContent = txt.substring(0,x) + "..";
+		// this isn't perfect, but gives a good starting point
+		// and avoids calling getSubStringLength too often
+		var start = Math.floor((w/sl) * txt.length);
+		for (var x = start; x > 0; x = x-2) {
+			if (t.getSubStringLength(0, x + 2) <= w) {
+				t.textContent = txt.substring(0, x) + "..";
 				return;
 			}
 		}
@@ -104,164 +192,179 @@
 			orig_load(e, "width");
 		}
 		if (e.childNodes == undefined) return;
-		for(var i=0, c=e.childNodes; i<c.length; i++) {
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
 			zoom_reset(c[i]);
 		}
 	}
 	function zoom_child(e, x, ratio) {
 		if (e.attributes != undefined) {
-			if (e.attributes["x"] != undefined) {
+			if (e.attributes.x != undefined) {
 				orig_save(e, "x");
-				e.attributes["x"].value = (parseFloat(e.attributes["x"].value) - x - 10) * ratio + 10;
-				if(e.tagName == "text") e.attributes["x"].value = find_child(e.parentNode, "rect", "x") + 3;
+				e.attributes.x.value = (parseFloat(e.attributes.x.value) - x - 10) * ratio + 10;
+				if (e.tagName == "text")
+					e.attributes.x.value = find_child(e.parentNode, "rect[x]").attributes.x.value + 3;
 			}
-			if (e.attributes["width"] != undefined) {
+			if (e.attributes.width != undefined) {
 				orig_save(e, "width");
-				e.attributes["width"].value = parseFloat(e.attributes["width"].value) * ratio;
+				e.attributes.width.value = parseFloat(e.attributes.width.value) * ratio;
 			}
 		}
 
 		if (e.childNodes == undefined) return;
-		for(var i=0, c=e.childNodes; i<c.length; i++) {
-			zoom_child(c[i], x-10, ratio);
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_child(c[i], x - 10, ratio);
 		}
 	}
 	function zoom_parent(e) {
 		if (e.attributes) {
-			if (e.attributes["x"] != undefined) {
+			if (e.attributes.x != undefined) {
 				orig_save(e, "x");
-				e.attributes["x"].value = 10;
+				e.attributes.x.value = 10;
 			}
-			if (e.attributes["width"] != undefined) {
+			if (e.attributes.width != undefined) {
 				orig_save(e, "width");
-				e.attributes["width"].value = parseInt(svg.width.baseVal.value) - (10*2);
+				e.attributes.width.value = parseInt(svg.width.baseVal.value) - (10 * 2);
 			}
 		}
 		if (e.childNodes == undefined) return;
-		for(var i=0, c=e.childNodes; i<c.length; i++) {
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
 			zoom_parent(c[i]);
 		}
 	}
 	function zoom(node) {
 		var attr = find_child(node, "rect").attributes;
-		var width = parseFloat(attr["width"].value);
-		var xmin = parseFloat(attr["x"].value);
+		var width = parseFloat(attr.width.value);
+		var xmin = parseFloat(attr.x.value);
 		var xmax = parseFloat(xmin + width);
-		var ymin = parseFloat(attr["y"].value);
-		var ratio = (svg.width.baseVal.value - 2*10) / width;
+		var ymin = parseFloat(attr.y.value);
+		var ratio = (svg.width.baseVal.value - 2 * 10) / width;
 
 		// XXX: Workaround for JavaScript float issues (fix me)
 		var fudge = 0.0001;
 
-		var unzoombtn = document.getElementById("unzoom");
-		unzoombtn.style["opacity"] = "1.0";
+		unzoombtn.classList.remove("hide");
 
-		var el = document.getElementsByTagName("g");
-		for(var i=0;i<el.length;i++){
+		var el = document.getElementById("frames").children;
+		for (var i = 0; i < el.length; i++) {
 			var e = el[i];
 			var a = find_child(e, "rect").attributes;
-			var ex = parseFloat(a["x"].value);
-			var ew = parseFloat(a["width"].value);
+			var ex = parseFloat(a.x.value);
+			var ew = parseFloat(a.width.value);
+			var upstack;
 			// Is it an ancestor
 			if (0 == 0) {
-				var upstack = parseFloat(a["y"].value) > ymin;
+				upstack = parseFloat(a.y.value) > ymin;
 			} else {
-				var upstack = parseFloat(a["y"].value) < ymin;
+				upstack = parseFloat(a.y.value) < ymin;
 			}
 			if (upstack) {
 				// Direct ancestor
 				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
-					e.style["opacity"] = "0.5";
+					e.classList.add("parent");
 					zoom_parent(e);
-					e.onclick = function(e){unzoom(); zoom(this);};
 					update_text(e);
 				}
 				// not in current path
 				else
-					e.style["display"] = "none";
+					e.classList.add("hide");
 			}
 			// Children maybe
 			else {
 				// no common path
 				if (ex < xmin || ex + fudge >= xmax) {
-					e.style["display"] = "none";
+					e.classList.add("hide");
 				}
 				else {
 					zoom_child(e, xmin, ratio);
-					e.onclick = function(e){zoom(this);};
 					update_text(e);
 				}
 			}
 		}
+		search();
 	}
-	function unzoom() {
-		var unzoombtn = document.getElementById("unzoom");
-		unzoombtn.style["opacity"] = "0.0";
-
-		var el = document.getElementsByTagName("g");
-		for(i=0;i<el.length;i++) {
-			el[i].style["display"] = "block";
-			el[i].style["opacity"] = "1";
+	function unzoom(dont_update_text) {
+		unzoombtn.classList.add("hide");
+		var el = document.getElementById("frames").children;
+		for(var i = 0; i < el.length; i++) {
+			el[i].classList.remove("parent");
+			el[i].classList.remove("hide");
 			zoom_reset(el[i]);
-			update_text(el[i]);
+			if(!dont_update_text) update_text(el[i]);
 		}
+		search();
+	}
+	function clearzoom() {
+		unzoom();
+
+		// remove zoom state
+		var params = get_params();
+		if (params.x) delete params.x;
+		if (params.y) delete params.y;
+		history.replaceState(null, null, parse_params(params));
 	}
 
 	// search
+	function toggle_ignorecase() {
+		ignorecase = !ignorecase;
+		if (ignorecase) {
+			ignorecaseBtn.classList.add("show");
+		} else {
+			ignorecaseBtn.classList.remove("show");
+		}
+		reset_search();
+		search();
+	}
 	function reset_search() {
-		var el = document.getElementsByTagName("rect");
-		for (var i=0; i < el.length; i++) {
+		var el = document.querySelectorAll("#frames rect");
+		for (var i = 0; i < el.length; i++) {
 			orig_load(el[i], "fill")
 		}
+		var params = get_params();
+		delete params.s;
+		history.replaceState(null, null, parse_params(params));
 	}
 	function search_prompt() {
 		if (!searching) {
 			var term = prompt("Enter a search term (regexp " +
-			    "allowed, eg: ^ext4_)", "");
-			if (term != null) {
-				search(term)
-			}
+			    "allowed, eg: ^ext4_)"
+			    + (ignorecase ? ", ignoring case" : "")
+			    + "\nPress Ctrl-i to toggle case sensitivity", "");
+			if (term != null) search(term);
 		} else {
 			reset_search();
 			searching = 0;
-			searchbtn.style["opacity"] = "0.1";
+			currentSearchTerm = null;
+			searchbtn.classList.remove("show");
 			searchbtn.firstChild.nodeValue = "Search"
-			matchedtxt.style["opacity"] = "0.0";
+			matchedtxt.classList.add("hide");
 			matchedtxt.firstChild.nodeValue = ""
 		}
 	}
 	function search(term) {
-		var re = new RegExp(term);
-		var el = document.getElementsByTagName("g");
+		if (term) currentSearchTerm = term;
+		if (currentSearchTerm === null) return;
+
+		var re = new RegExp(currentSearchTerm, ignorecase ? 'i' : '');
+		var el = document.getElementById("frames").children;
 		var matches = new Object();
 		var maxwidth = 0;
 		for (var i = 0; i < el.length; i++) {
 			var e = el[i];
-			if (e.attributes["class"].value != "func_g")
-				continue;
 			var func = g_to_func(e);
 			var rect = find_child(e, "rect");
-			if (rect == null) {
-				// the rect might be wrapped in an anchor
-				// if nameattr href is being used
-				if (rect = find_child(e, "a")) {
-				    rect = find_child(r, "rect");
-				}
-			}
 			if (func == null || rect == null)
 				continue;
 
 			// Save max width. Only works as we have a root frame
-			var w = parseFloat(rect.attributes["width"].value);
+			var w = parseFloat(rect.attributes.width.value);
 			if (w > maxwidth)
 				maxwidth = w;
 
 			if (func.match(re)) {
 				// highlight
-				var x = parseFloat(rect.attributes["x"].value);
+				var x = parseFloat(rect.attributes.x.value);
 				orig_save(rect, "fill");
-				rect.attributes["fill"].value =
-				    "rgb(230,0,230)";
+				rect.attributes.fill.value = "rgb(230,0,230)";
 
 				// remember matches
 				if (matches[x] == undefined) {
@@ -277,9 +380,12 @@
 		}
 		if (!searching)
 			return;
+		var params = get_params();
+		params.s = currentSearchTerm;
+		history.replaceState(null, null, parse_params(params));
 
-		searchbtn.style["opacity"] = "1.0";
-		searchbtn.firstChild.nodeValue = "Reset Search"
+		searchbtn.classList.add("show");
+		searchbtn.firstChild.nodeValue = "Reset Search";
 
 		// calculate percent matched, excluding vertical overlap
 		var count = 0;
@@ -309,218 +415,1404 @@
 			}
 		}
 		// display matched percent
-		matchedtxt.style["opacity"] = "1.0";
-		pct = 100 * count / maxwidth;
-		if (pct == 100)
-			pct = "100"
-		else
-			pct = pct.toFixed(1)
+		matchedtxt.classList.remove("hide");
+		var pct = 100 * count / maxwidth;
+		if (pct != 100) pct = pct.toFixed(1)
 		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
-	}
-	function searchover(e) {
-		searchbtn.style["opacity"] = "1.0";
-	}
-	function searchout(e) {
-		if (searching) {
-			searchbtn.style["opacity"] = "1.0";
-		} else {
-			searchbtn.style["opacity"] = "0.1";
-		}
 	}
 ]]>
 </script>
-<rect x="0.0" y="0" width="1200.0" height="310.0" fill="url(#background)"  />
-<text text-anchor="middle" x="600.00" y="24" font-size="17" font-family="Verdana" fill="rgb(0,0,0)"  >Flame Graph</text>
-<text text-anchor="" x="10.00" y="293" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="details" > </text>
-<text text-anchor="" x="10.00" y="24" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="unzoom" onclick="unzoom()" style="opacity:0.0;cursor:pointer" >Reset Zoom</text>
-<text text-anchor="" x="1090.00" y="24" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="search" onmouseover="searchover()" onmouseout="searchout()" onclick="search_prompt()" style="opacity:0.1;cursor:pointer" >Search</text>
-<text text-anchor="" x="1090.00" y="293" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="matched" > </text>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::__tree&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::__map_value_compare&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;&gt;, true&gt;, std::__1::allocator&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;&gt;&gt;::destroy(std::__1::__tree_node&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator (1 samples, 4.76%)</title><rect x="291.0" y="165" width="56.1" height="15.0" fill="rgb(228,146,44)" rx="2" ry="2" />
-<text text-anchor="" x="293.95" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`s..</text>
+<rect x="0.0" y="0" width="1200.0" height="646.0" fill="url(#background)"  />
+<text id="title" x="600.00" y="24" >Flame Graph</text>
+<text id="details" x="10.00" y="629" > </text>
+<text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
+<text id="search" x="1090.00" y="24" >Search</text>
+<text id="ignorecase" x="1174.00" y="24" >ic</text>
+<text id="matched" x="1090.00" y="629" > </text>
+<g id="frames">
+<g >
+<title>std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;::_M_append (1,891,877,257 samples, 0.11%)</title><rect x="655.4" y="453" width="1.3" height="15.0" fill="rgb(222,79,19)" rx="2" ry="2" />
+<text  x="658.36" y="463.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;::__get_pointer[abi:ne200100] (1 samples, 4.76%)</title><rect x="1021.4" y="165" width="56.2" height="15.0" fill="rgb(245,41,22)" rx="2" ry="2" />
-<text text-anchor="" x="1024.43" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`s..</text>
+<g >
+<title>std::basic_istream&lt;char, std::char_traits&lt;char&gt; &gt;&amp; std::getline&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; (860,309,835 samples, 0.05%)</title><rect x="1188.7" y="485" width="0.6" height="15.0" fill="rgb(244,181,43)" rx="2" ry="2" />
+<text  x="1191.74" y="495.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libsystem_c.dylib`__lo0bits_D2A (1 samples, 4.76%)</title><rect x="178.6" y="149" width="56.2" height="15.0" fill="rgb(252,222,40)" rx="2" ry="2" />
-<text text-anchor="" x="181.57" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libsy..</text>
+<g >
+<title>try_charge_memcg (331,748,954 samples, 0.02%)</title><rect x="834.3" y="149" width="0.2" height="15.0" fill="rgb(210,27,6)" rx="2" ry="2" />
+<text  x="837.27" y="159.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libc++.1.dylib`std::__1::basic_streambuf&lt;char, std::__1::char_traits&lt;char&gt;&gt;::uflow (1 samples, 4.76%)</title><rect x="403.3" y="197" width="56.2" height="15.0" fill="rgb(234,94,29)" rx="2" ry="2" />
-<text text-anchor="" x="406.33" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libc+..</text>
+<g >
+<title>lru_add_fn (1,115,138,146 samples, 0.07%)</title><rect x="836.3" y="149" width="0.7" height="15.0" fill="rgb(208,14,3)" rx="2" ry="2" />
+<text  x="839.26" y="159.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libsystem_c.dylib`__vfprintf (2 samples, 9.52%)</title><rect x="122.4" y="181" width="112.4" height="15.0" fill="rgb(244,12,15)" rx="2" ry="2" />
-<text text-anchor="" x="125.38" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libsystem_c.d..</text>
+<g >
+<title>std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;::_M_append (15,763,762,642 samples, 0.93%)</title><rect x="728.6" y="437" width="11.0" height="15.0" fill="rgb(222,79,19)" rx="2" ry="2" />
+<text  x="731.59" y="447.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libsystem_c.dylib`__sfvwrite (1 samples, 4.76%)</title><rect x="796.7" y="165" width="56.2" height="15.0" fill="rgb(247,220,31)" rx="2" ry="2" />
-<text text-anchor="" x="799.67" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libsy..</text>
+<g >
+<title>[libc.so.6] (6,466,135,937 samples, 0.38%)</title><rect x="507.3" y="437" width="4.5" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="510.26" y="447.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;::size[abi:ne200100] (1 samples, 4.76%)</title><rect x="740.5" y="197" width="56.2" height="15.0" fill="rgb(206,60,37)" rx="2" ry="2" />
-<text text-anchor="" x="743.48" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`s..</text>
+<g >
+<title>ext4_sb_block_valid (156,520,637 samples, 0.01%)</title><rect x="844.5" y="101" width="0.1" height="15.0" fill="rgb(244,180,43)" rx="2" ry="2" />
+<text  x="847.47" y="111.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libsystem_c.dylib`fwrite (1 samples, 4.76%)</title><rect x="796.7" y="181" width="56.2" height="15.0" fill="rgb(211,69,15)" rx="2" ry="2" />
-<text text-anchor="" x="799.67" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libsy..</text>
+<g >
+<title>tick_sched_do_timer (351,687,978 samples, 0.02%)</title><rect x="1182.7" y="357" width="0.3" height="15.0" fill="rgb(227,104,25)" rx="2" ry="2" />
+<text  x="1185.72" y="367.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libsystem_malloc.dylib`_nanov2_free (1 samples, 4.76%)</title><rect x="291.0" y="37" width="56.1" height="15.0" fill="rgb(232,51,17)" rx="2" ry="2" />
-<text text-anchor="" x="293.95" y="47.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libsy..</text>
+<g >
+<title>amd_pmu_disable_all (638,600,268 samples, 0.04%)</title><rect x="1183.3" y="261" width="0.4" height="15.0" fill="rgb(213,38,9)" rx="2" ry="2" />
+<text  x="1186.26" y="271.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::__tree_node_base&lt;void*&gt;*&amp; std::__1::__tree&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::__map_value_compare&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;&gt;, true&gt;, std::__1::allocator&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;&gt;&gt;::__find_equal&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;&gt;(std::__1::__tree_end_node&lt;std::__1::__tree_node_base&lt;void*&gt;*&gt;*&amp;, std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator (5 samples, 23.81%)</title><rect x="909.0" y="181" width="281.0" height="15.0" fill="rgb(249,48,51)" rx="2" ry="2" />
-<text text-anchor="" x="912.05" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`std::__1::__tree_node_base&lt;void*&gt;..</text>
+<g >
+<title>cfree (428,831,740 samples, 0.03%)</title><rect x="1187.7" y="485" width="0.3" height="15.0" fill="rgb(223,86,20)" rx="2" ry="2" />
+<text  x="1190.69" y="495.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>all (21 samples, 100%)</title><rect x="10.0" y="261" width="1180.0" height="15.0" fill="rgb(242,157,17)" rx="2" ry="2" />
-<text text-anchor="" x="13.00" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+<g >
+<title>x86_pmu_disable (499,854,900 samples, 0.03%)</title><rect x="286.7" y="277" width="0.4" height="15.0" fill="rgb(239,160,38)" rx="2" ry="2" />
+<text  x="289.74" y="287.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::__tree&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::__map_value_compare&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;&gt;, true&gt;, std::__1::allocator&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;&gt;&gt;::destroy(std::__1::__tree_node&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator (1 samples, 4.76%)</title><rect x="291.0" y="149" width="56.1" height="15.0" fill="rgb(215,154,42)" rx="2" ry="2" />
-<text text-anchor="" x="293.95" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`s..</text>
+<g >
+<title>[libc.so.6] (1,683,741,009,756 samples, 99.50%)</title><rect x="15.9" y="533" width="1174.1" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="18.89" y="543.5" >[libc.so.6]</text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libsystem_c.dylib`__fread (1 samples, 4.76%)</title><rect x="403.3" y="149" width="56.2" height="15.0" fill="rgb(227,216,19)" rx="2" ry="2" />
-<text text-anchor="" x="406.33" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libsy..</text>
+<g >
+<title>all (1,692,209,707,859 samples, 100%)</title><rect x="10.0" y="597" width="1180.0" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
+<text  x="13.00" y="607.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libc++.1.dylib`std::__1::basic_istream&lt;char, std::__1::char_traits&lt;char&gt;&gt;::sentry::sentry(std::__1::basic_istream&lt;char, std::__1::char_traits (1 samples, 4.76%)</title><rect x="347.1" y="197" width="56.2" height="15.0" fill="rgb(218,55,6)" rx="2" ry="2" />
-<text text-anchor="" x="350.14" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libc+..</text>
+<g >
+<title>scheduler_tick (715,841,967 samples, 0.04%)</title><rect x="502.8" y="309" width="0.5" height="15.0" fill="rgb(246,190,45)" rx="2" ry="2" />
+<text  x="505.76" y="319.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::__tree&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::__map_value_compare&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;&gt;, true&gt;, std::__1::allocator&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;&gt;&gt;::destroy(std::__1::__tree_node&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator (1 samples, 4.76%)</title><rect x="291.0" y="213" width="56.1" height="15.0" fill="rgb(234,34,1)" rx="2" ry="2" />
-<text text-anchor="" x="293.95" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`s..</text>
+<g >
+<title>asm_sysvec_apic_timer_interrupt (1,458,583,649 samples, 0.09%)</title><rect x="502.5" y="437" width="1.0" height="15.0" fill="rgb(232,127,30)" rx="2" ry="2" />
+<text  x="505.52" y="447.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::__tree&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::__map_value_compare&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;&gt;, true&gt;, std::__1::allocator&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;&gt;&gt;::destroy(std::__1::__tree_node&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator (1 samples, 4.76%)</title><rect x="291.0" y="181" width="56.1" height="15.0" fill="rgb(218,54,14)" rx="2" ry="2" />
-<text text-anchor="" x="293.95" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`s..</text>
+<g >
+<title>std::basic_ios&lt;char, std::char_traits&lt;char&gt; &gt;::_M_cache_locale (1,034,592,159 samples, 0.06%)</title><rect x="551.3" y="437" width="0.7" height="15.0" fill="rgb(223,86,20)" rx="2" ry="2" />
+<text  x="554.29" y="447.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`main (21 samples, 100.00%)</title><rect x="10.0" y="229" width="1180.0" height="15.0" fill="rgb(244,128,44)" rx="2" ry="2" />
-<text text-anchor="" x="13.00" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`main</text>
+<g >
+<title>lru_gen_refault (2,045,273,244 samples, 0.12%)</title><rect x="837.4" y="165" width="1.4" height="15.0" fill="rgb(240,163,39)" rx="2" ry="2" />
+<text  x="840.37" y="175.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::basic_streambuf&lt;char, std::__1::char_traits&lt;char&gt;&gt;::sbumpc[abi:ne200100] (2 samples, 9.52%)</title><rect x="628.1" y="197" width="112.4" height="15.0" fill="rgb(206,145,34)" rx="2" ry="2" />
-<text text-anchor="" x="631.10" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`std::__1:..</text>
+<g >
+<title>sysvec_apic_timer_interrupt (150,967,453 samples, 0.01%)</title><rect x="757.0" y="405" width="0.1" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="760.02" y="415.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::pair&lt;std::__1::__tree_iterator&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::__tree_node&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, void*&gt;*, long&gt;, bool&gt; std::__1::__tree&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::__map_value_compare&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;&gt;, true&gt;, std::__1::allocator&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;&gt;&gt;::__emplace_unique_key_args&lt;std::__1::basic_string (5 samples, 23.81%)</title><rect x="909.0" y="197" width="281.0" height="15.0" fill="rgb(251,95,11)" rx="2" ry="2" />
-<text text-anchor="" x="912.05" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`std::__1::pair&lt;std::__1::__tree_i..</text>
+<g >
+<title>__sysvec_apic_timer_interrupt (145,038,036 samples, 0.01%)</title><rect x="757.0" y="389" width="0.1" height="15.0" fill="rgb(242,173,41)" rx="2" ry="2" />
+<text  x="760.02" y="399.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libsystem_c.dylib`_sread (1 samples, 4.76%)</title><rect x="403.3" y="117" width="56.2" height="15.0" fill="rgb(253,38,7)" rx="2" ry="2" />
-<text text-anchor="" x="406.33" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libsy..</text>
+<g >
+<title>__count_memcg_events (331,572,888 samples, 0.02%)</title><rect x="834.0" y="133" width="0.2" height="15.0" fill="rgb(250,211,50)" rx="2" ry="2" />
+<text  x="836.95" y="143.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::__tree&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::__map_value_compare&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;&gt;, true&gt;, std::__1::allocator&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;&gt;&gt;::destroy(std::__1::__tree_node&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator (1 samples, 4.76%)</title><rect x="291.0" y="85" width="56.1" height="15.0" fill="rgb(233,73,30)" rx="2" ry="2" />
-<text text-anchor="" x="293.95" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`s..</text>
+<g >
+<title>native_write_msr (502,068,314 samples, 0.03%)</title><rect x="1184.3" y="341" width="0.4" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="1187.31" y="351.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libsystem_c.dylib`snprintf (2 samples, 9.52%)</title><rect x="122.4" y="213" width="112.4" height="15.0" fill="rgb(217,214,14)" rx="2" ry="2" />
-<text text-anchor="" x="125.38" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libsystem_c.d..</text>
+<g >
+<title>std::locale::operator= (2,842,342,174 samples, 0.17%)</title><rect x="640.3" y="421" width="2.0" height="15.0" fill="rgb(242,173,41)" rx="2" ry="2" />
+<text  x="643.31" y="431.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::__tree&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::__map_value_compare&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;&gt;, true&gt;, std::__1::allocator&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;&gt;&gt;::destroy(std::__1::__tree_node&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator (1 samples, 4.76%)</title><rect x="291.0" y="133" width="56.1" height="15.0" fill="rgb(227,111,4)" rx="2" ry="2" />
-<text text-anchor="" x="293.95" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`s..</text>
+<g >
+<title>common_interrupt (245,385,043 samples, 0.01%)</title><rect x="286.1" y="437" width="0.1" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="289.05" y="447.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;::size[abi:ne200100] (1 samples, 4.76%)</title><rect x="852.9" y="213" width="56.1" height="15.0" fill="rgb(229,143,30)" rx="2" ry="2" />
-<text text-anchor="" x="855.86" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`s..</text>
+<g >
+<title>scheduler_tick (242,948,388 samples, 0.01%)</title><rect x="727.6" y="309" width="0.2" height="15.0" fill="rgb(246,190,45)" rx="2" ry="2" />
+<text  x="730.63" y="319.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libc++.1.dylib`std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;::push_back (1 samples, 4.76%)</title><rect x="459.5" y="197" width="56.2" height="15.0" fill="rgb(207,66,3)" rx="2" ry="2" />
-<text text-anchor="" x="462.52" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libc+..</text>
+<g >
+<title>generic_file_read_iter (30,729,679,587 samples, 1.82%)</title><rect x="826.4" y="309" width="21.4" height="15.0" fill="rgb(222,78,18)" rx="2" ry="2" />
+<text  x="829.39" y="319.5" >g..</text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>dyld`start (21 samples, 100.00%)</title><rect x="10.0" y="245" width="1180.0" height="15.0" fill="rgb(231,208,22)" rx="2" ry="2" />
-<text text-anchor="" x="13.00" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >dyld`start</text>
+<g >
+<title>hrtimer_interrupt (301,320,732 samples, 0.02%)</title><rect x="503.8" y="405" width="0.2" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="506.76" y="415.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::ostreambuf_iterator&lt;char, std::__1::char_traits&lt;char&gt;&gt; std::__1::__pad_and_output[abi:ne200100]&lt;char, std::__1::char_traits&lt;char&gt;&gt;(std::__1::ostreambuf_iterator&lt;char, std::__1::char_traits (1 samples, 4.76%)</title><rect x="796.7" y="197" width="56.2" height="15.0" fill="rgb(205,64,48)" rx="2" ry="2" />
-<text text-anchor="" x="799.67" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`s..</text>
+<g >
+<title>std::ios_base::~ios_base (12,636,777,278 samples, 0.75%)</title><rect x="770.3" y="453" width="8.8" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="773.26" y="463.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libsystem_c.dylib`_vsnprintf (2 samples, 9.52%)</title><rect x="122.4" y="197" width="112.4" height="15.0" fill="rgb(227,122,22)" rx="2" ry="2" />
-<text text-anchor="" x="125.38" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libsystem_c.d..</text>
+<g >
+<title>[libc.so.6] (402,390,282 samples, 0.02%)</title><rect x="736.3" y="421" width="0.2" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="739.27" y="431.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::basic_ios&lt;char, std::__1::char_traits&lt;char&gt;&gt;::rdbuf[abi:ne200100] (2 samples, 9.52%)</title><rect x="515.7" y="197" width="112.4" height="15.0" fill="rgb(227,126,35)" rx="2" ry="2" />
-<text text-anchor="" x="518.71" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`std::__1:..</text>
+<g >
+<title>tick_sched_do_timer (271,841,138 samples, 0.02%)</title><rect x="286.3" y="357" width="0.2" height="15.0" fill="rgb(227,104,25)" rx="2" ry="2" />
+<text  x="289.34" y="367.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libsystem_c.dylib`_swrite (1 samples, 4.76%)</title><rect x="796.7" y="149" width="56.2" height="15.0" fill="rgb(215,201,10)" rx="2" ry="2" />
-<text text-anchor="" x="799.67" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libsy..</text>
+<g >
+<title>hrtimer_interrupt (485,665,141 samples, 0.03%)</title><rect x="727.5" y="389" width="0.4" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="730.53" y="399.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::basic_istream&lt;char, std::__1::char_traits&lt;char&gt;&gt;&amp; std::__1::getline[abi:ne200100]&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;(std::__1::basic_istream&lt;char, std::__1::char_traits&lt;char&gt;&gt;&amp;, std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator (8 samples, 38.10%)</title><rect x="347.1" y="213" width="449.6" height="15.0" fill="rgb(253,172,11)" rx="2" ry="2" />
-<text text-anchor="" x="350.14" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`std::__1::basic_istream&lt;char, std::__1::char_traits&lt;char&gt;..</text>
+<g >
+<title>operator new (2,222,405,472 samples, 0.13%)</title><rect x="738.0" y="405" width="1.6" height="15.0" fill="rgb(216,51,12)" rx="2" ry="2" />
+<text  x="741.03" y="415.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::__tree&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::__map_value_compare&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;&gt;, true&gt;, std::__1::allocator&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;&gt;&gt;::destroy(std::__1::__tree_node&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator (1 samples, 4.76%)</title><rect x="291.0" y="197" width="56.1" height="15.0" fill="rgb(238,209,42)" rx="2" ry="2" />
-<text text-anchor="" x="293.95" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`s..</text>
+<g >
+<title>[libc.so.6] (56,839,747,693 samples, 3.36%)</title><rect x="462.7" y="437" width="39.7" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="465.74" y="447.5" >[li..</text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::__tree&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::__map_value_compare&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;&gt;, true&gt;, std::__1::allocator&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;&gt;&gt;::destroy(std::__1::__tree_node&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator (1 samples, 4.76%)</title><rect x="291.0" y="53" width="56.1" height="15.0" fill="rgb(219,175,39)" rx="2" ry="2" />
-<text text-anchor="" x="293.95" y="63.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`s..</text>
+<g >
+<title>atime_needs_update (465,016,019 samples, 0.03%)</title><rect x="847.4" y="261" width="0.3" height="15.0" fill="rgb(217,56,13)" rx="2" ry="2" />
+<text  x="850.38" y="271.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::map&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;&gt;, std::__1::allocator&lt;std::__1::pair&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt; const, LocationStats&gt;&gt;&gt;::operator[](std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator (5 samples, 23.81%)</title><rect x="909.0" y="213" width="281.0" height="15.0" fill="rgb(254,191,23)" rx="2" ry="2" />
-<text text-anchor="" x="912.05" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`std::__1::map&lt;std::__1::basic_str..</text>
+<g >
+<title>tick_sched_do_timer (156,806,741 samples, 0.01%)</title><rect x="502.6" y="341" width="0.1" height="15.0" fill="rgb(227,104,25)" rx="2" ry="2" />
+<text  x="505.57" y="351.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libc+ (1 samples, 4.76%)</title><rect x="66.2" y="213" width="56.2" height="15.0" fill="rgb(244,26,54)" rx="2" ry="2" />
-<text text-anchor="" x="69.19" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libc+</text>
+<g >
+<title>[libc.so.6] (772,176,017 samples, 0.05%)</title><rect x="291.2" y="453" width="0.6" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="294.23" y="463.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libsystem_kernel.dylib`__write_nocancel (1 samples, 4.76%)</title><rect x="796.7" y="133" width="56.2" height="15.0" fill="rgb(254,67,36)" rx="2" ry="2" />
-<text text-anchor="" x="799.67" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libsy..</text>
+<g >
+<title>__sysvec_apic_timer_interrupt (163,223,397 samples, 0.01%)</title><rect x="289.8" y="437" width="0.1" height="15.0" fill="rgb(242,173,41)" rx="2" ry="2" />
+<text  x="292.81" y="447.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libsystem_c.dylib`__srefill1 (1 samples, 4.76%)</title><rect x="403.3" y="133" width="56.2" height="15.0" fill="rgb(219,177,48)" rx="2" ry="2" />
-<text text-anchor="" x="406.33" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libsy..</text>
+<g >
+<title>__fsnotify_parent (755,662,088 samples, 0.04%)</title><rect x="825.7" y="325" width="0.5" height="15.0" fill="rgb(225,96,23)" rx="2" ry="2" />
+<text  x="828.70" y="335.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libsystem_platform.dylib`_platform_memmove (1 samples, 4.76%)</title><rect x="234.8" y="213" width="56.2" height="15.0" fill="rgb(226,36,15)" rx="2" ry="2" />
-<text text-anchor="" x="237.76" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libsy..</text>
+<g >
+<title>_copy_to_iter (348,862,874 samples, 0.02%)</title><rect x="827.3" y="261" width="0.3" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="830.31" y="271.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libc++.1.dylib`std::__1::basic_filebuf&lt;char, std::__1::char_traits&lt;char&gt;&gt;::underflow (1 samples, 4.76%)</title><rect x="403.3" y="181" width="56.2" height="15.0" fill="rgb(209,58,40)" rx="2" ry="2" />
-<text text-anchor="" x="406.33" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libc+..</text>
+<g >
+<title>std::__cxx11::basic_stringbuf&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;::_M_sync (10,938,327,343 samples, 0.65%)</title><rect x="543.7" y="437" width="7.6" height="15.0" fill="rgb(232,126,30)" rx="2" ry="2" />
+<text  x="546.67" y="447.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libsystem_c.dylib`fread (1 samples, 4.76%)</title><rect x="403.3" y="165" width="56.2" height="15.0" fill="rgb(254,229,31)" rx="2" ry="2" />
-<text text-anchor="" x="406.33" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libsy..</text>
+<g >
+<title>tick_program_event (534,370,094 samples, 0.03%)</title><rect x="1184.3" y="389" width="0.4" height="15.0" fill="rgb(241,166,39)" rx="2" ry="2" />
+<text  x="1187.30" y="399.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::__tree&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::__map_value_compare&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;&gt;, true&gt;, std::__1::allocator&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;&gt;&gt;::destroy(std::__1::__tree_node&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator (1 samples, 4.76%)</title><rect x="291.0" y="117" width="56.1" height="15.0" fill="rgb(247,1,32)" rx="2" ry="2" />
-<text text-anchor="" x="293.95" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`s..</text>
+<g >
+<title>__sysvec_apic_timer_interrupt (215,771,846 samples, 0.01%)</title><rect x="820.1" y="421" width="0.2" height="15.0" fill="rgb(242,173,41)" rx="2" ry="2" />
+<text  x="823.11" y="431.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::__tree&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::__map_value_compare&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;&gt;, true&gt;, std::__1::allocator&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;&gt;&gt;::destroy(std::__1::__tree_node&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator (1 samples, 4.76%)</title><rect x="291.0" y="101" width="56.1" height="15.0" fill="rgb(226,167,29)" rx="2" ry="2" />
-<text text-anchor="" x="293.95" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`s..</text>
+<g >
+<title>[libstdc++.so.6.0.33] (7,731,367,710 samples, 0.46%)</title><rect x="600.5" y="405" width="5.4" height="15.0" fill="rgb(216,51,12)" rx="2" ry="2" />
+<text  x="603.51" y="415.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libsystem_kernel.dylib`__read_nocancel (1 samples, 4.76%)</title><rect x="403.3" y="101" width="56.2" height="15.0" fill="rgb(242,64,6)" rx="2" ry="2" />
-<text text-anchor="" x="406.33" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libsy..</text>
+<g >
+<title>virtblk_done (188,865,442 samples, 0.01%)</title><rect x="286.1" y="341" width="0.1" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="289.06" y="351.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>libsystem_c.dylib`__dtoa (2 samples, 9.52%)</title><rect x="122.4" y="165" width="112.4" height="15.0" fill="rgb(250,81,4)" rx="2" ry="2" />
-<text text-anchor="" x="125.38" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >libsystem_c.d..</text>
+<g >
+<title>ext4_readahead (4,080,821,758 samples, 0.24%)</title><rect x="843.6" y="181" width="2.9" height="15.0" fill="rgb(252,216,51)" rx="2" ry="2" />
+<text  x="846.64" y="191.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::basic_ostream&lt;char, std::__1::char_traits&lt;char&gt;&gt;&amp; std::__1::__put_character_sequence[abi:ne200100]&lt;char, std::__1::char_traits&lt;char&gt;&gt;(std::__1::basic_ostream&lt;char, std::__1::char_traits (1 samples, 4.76%)</title><rect x="796.7" y="213" width="56.2" height="15.0" fill="rgb(229,24,15)" rx="2" ry="2" />
-<text text-anchor="" x="799.67" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`s..</text>
+<g >
+<title>std::basic_ios&lt;char, std::char_traits&lt;char&gt; &gt;::init (3,687,936,966 samples, 0.22%)</title><rect x="664.5" y="453" width="2.6" height="15.0" fill="rgb(206,7,1)" rx="2" ry="2" />
+<text  x="667.54" y="463.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;::size[abi:ne200100] (2 samples, 9.52%)</title><rect x="1077.6" y="165" width="112.4" height="15.0" fill="rgb(218,140,46)" rx="2" ry="2" />
-<text text-anchor="" x="1080.62" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`std::__1:..</text>
+<g >
+<title>std::__cxx11::basic_istringstream&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;::basic_istringstream (670,229,911 samples, 0.04%)</title><rect x="786.9" y="469" width="0.4" height="15.0" fill="rgb(232,126,30)" rx="2" ry="2" />
+<text  x="789.86" y="479.5" ></text>
 </g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>sol`std::__1::__tree&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::__map_value_compare&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;, std::__1::less&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;&gt;, true&gt;, std::__1::allocator&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt;, LocationStats&gt;&gt;&gt;::destroy(std::__1::__tree_node&lt;std::__1::__value_type&lt;std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator (1 samples, 4.76%)</title><rect x="291.0" y="69" width="56.1" height="15.0" fill="rgb(246,40,28)" rx="2" ry="2" />
-<text text-anchor="" x="293.95" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >sol`s..</text>
+<g >
+<title>update_process_times (1,374,372,392 samples, 0.08%)</title><rect x="286.5" y="341" width="1.0" height="15.0" fill="rgb(250,209,50)" rx="2" ry="2" />
+<text  x="289.54" y="351.5" ></text>
+</g>
+<g >
+<title>std::locale::operator= (13,497,656,119 samples, 0.80%)</title><rect x="614.2" y="405" width="9.4" height="15.0" fill="rgb(242,173,41)" rx="2" ry="2" />
+<text  x="617.20" y="415.5" ></text>
+</g>
+<g >
+<title>x86_pmu_disable_all (381,368,921 samples, 0.02%)</title><rect x="286.8" y="245" width="0.3" height="15.0" fill="rgb(254,227,54)" rx="2" ry="2" />
+<text  x="289.82" y="255.5" ></text>
+</g>
+<g >
+<title>[libc.so.6] (12,359,273,662 samples, 0.73%)</title><rect x="718.9" y="437" width="8.6" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="721.87" y="447.5" ></text>
+</g>
+<g >
+<title>main (1,683,741,009,756 samples, 99.50%)</title><rect x="15.9" y="517" width="1174.1" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
+<text  x="18.89" y="527.5" >main</text>
+</g>
+<g >
+<title>current_time (186,715,120 samples, 0.01%)</title><rect x="847.5" y="245" width="0.2" height="15.0" fill="rgb(235,138,33)" rx="2" ry="2" />
+<text  x="850.53" y="255.5" ></text>
+</g>
+<g >
+<title>__common_interrupt (290,564,025 samples, 0.02%)</title><rect x="1182.4" y="421" width="0.2" height="15.0" fill="rgb(237,150,36)" rx="2" ry="2" />
+<text  x="1185.37" y="431.5" ></text>
+</g>
+<g >
+<title>amd_pmu_disable_all (488,039,462 samples, 0.03%)</title><rect x="286.7" y="261" width="0.4" height="15.0" fill="rgb(213,38,9)" rx="2" ry="2" />
+<text  x="289.75" y="271.5" ></text>
+</g>
+<g >
+<title>x64_sys_call (34,780,297,711 samples, 2.06%)</title><rect x="825.0" y="389" width="24.2" height="15.0" fill="rgb(247,194,46)" rx="2" ry="2" />
+<text  x="827.97" y="399.5" >x..</text>
+</g>
+<g >
+<title>blk_finish_plug (1,169,332,233 samples, 0.07%)</title><rect x="842.8" y="181" width="0.8" height="15.0" fill="rgb(231,119,28)" rx="2" ry="2" />
+<text  x="845.82" y="191.5" ></text>
+</g>
+<g >
+<title>folio_alloc (5,296,792,274 samples, 0.31%)</title><rect x="839.1" y="181" width="3.7" height="15.0" fill="rgb(252,217,52)" rx="2" ry="2" />
+<text  x="842.06" y="191.5" ></text>
+</g>
+<g >
+<title>__mod_lruvec_state (713,339,093 samples, 0.04%)</title><rect x="838.2" y="133" width="0.5" height="15.0" fill="rgb(226,100,24)" rx="2" ry="2" />
+<text  x="841.23" y="143.5" ></text>
+</g>
+<g >
+<title>asm_common_interrupt (245,385,043 samples, 0.01%)</title><rect x="286.1" y="453" width="0.1" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="289.05" y="463.5" ></text>
+</g>
+<g >
+<title>virtqueue_add_split (189,155,750 samples, 0.01%)</title><rect x="843.0" y="53" width="0.1" height="15.0" fill="rgb(253,221,52)" rx="2" ry="2" />
+<text  x="845.96" y="63.5" ></text>
+</g>
+<g >
+<title>scheduler_tick (1,160,680,968 samples, 0.07%)</title><rect x="286.7" y="325" width="0.8" height="15.0" fill="rgb(246,190,45)" rx="2" ry="2" />
+<text  x="289.67" y="335.5" ></text>
+</g>
+<g >
+<title>__sysvec_apic_timer_interrupt (375,730,834 samples, 0.02%)</title><rect x="502.1" y="389" width="0.3" height="15.0" fill="rgb(242,173,41)" rx="2" ry="2" />
+<text  x="505.10" y="399.5" ></text>
+</g>
+<g >
+<title>tick_nohz_highres_handler (207,080,169 samples, 0.01%)</title><rect x="503.8" y="373" width="0.1" height="15.0" fill="rgb(215,50,11)" rx="2" ry="2" />
+<text  x="506.76" y="383.5" ></text>
+</g>
+<g >
+<title>x86_pmu_disable (641,563,312 samples, 0.04%)</title><rect x="1183.3" y="277" width="0.4" height="15.0" fill="rgb(239,160,38)" rx="2" ry="2" />
+<text  x="1186.25" y="287.5" ></text>
+</g>
+<g >
+<title>sysvec_apic_timer_interrupt (306,998,900 samples, 0.02%)</title><rect x="503.8" y="437" width="0.2" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="506.76" y="447.5" ></text>
+</g>
+<g >
+<title>perf_event_task_tick (745,108,440 samples, 0.04%)</title><rect x="1183.2" y="309" width="0.5" height="15.0" fill="rgb(205,3,0)" rx="2" ry="2" />
+<text  x="1186.19" y="319.5" ></text>
+</g>
+<g >
+<title>perf_event_task_tick (541,326,925 samples, 0.03%)</title><rect x="286.7" y="309" width="0.4" height="15.0" fill="rgb(205,3,0)" rx="2" ry="2" />
+<text  x="289.72" y="319.5" ></text>
+</g>
+<g >
+<title>hrtimer_interrupt (212,808,393 samples, 0.01%)</title><rect x="820.1" y="405" width="0.2" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="823.11" y="415.5" ></text>
+</g>
+<g >
+<title>sysvec_apic_timer_interrupt (396,344,837 samples, 0.02%)</title><rect x="502.1" y="405" width="0.3" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="505.10" y="415.5" ></text>
+</g>
+<g >
+<title>[unknown] (8,444,944,616 samples, 0.50%)</title><rect x="10.0" y="565" width="5.9" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="13.00" y="575.5" ></text>
+</g>
+<g >
+<title>blk_account_io_start (1,135,747,619 samples, 0.07%)</title><rect x="845.1" y="69" width="0.8" height="15.0" fill="rgb(212,32,7)" rx="2" ry="2" />
+<text  x="848.13" y="79.5" ></text>
+</g>
+<g >
+<title>read_pages (5,273,522,668 samples, 0.31%)</title><rect x="842.8" y="197" width="3.7" height="15.0" fill="rgb(227,103,24)" rx="2" ry="2" />
+<text  x="845.81" y="207.5" ></text>
+</g>
+<g >
+<title>handle_edge_irq (284,681,524 samples, 0.02%)</title><rect x="1182.4" y="405" width="0.2" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="1185.37" y="415.5" ></text>
+</g>
+<g >
+<title>std::ios_base::ios_base (16,550,598,035 samples, 0.98%)</title><rect x="758.7" y="453" width="11.6" height="15.0" fill="rgb(212,35,8)" rx="2" ry="2" />
+<text  x="761.72" y="463.5" ></text>
+</g>
+<g >
+<title>malloc@plt (268,892,842 samples, 0.02%)</title><rect x="737.8" y="405" width="0.2" height="15.0" fill="rgb(246,192,46)" rx="2" ry="2" />
+<text  x="740.84" y="415.5" ></text>
+</g>
+<g >
+<title>workingset_update_node (204,750,312 samples, 0.01%)</title><rect x="835.7" y="149" width="0.1" height="15.0" fill="rgb(244,179,42)" rx="2" ry="2" />
+<text  x="838.69" y="159.5" ></text>
+</g>
+<g >
+<title>__check_block_validity.constprop.0 (177,173,894 samples, 0.01%)</title><rect x="844.5" y="133" width="0.1" height="15.0" fill="rgb(251,213,50)" rx="2" ry="2" />
+<text  x="847.46" y="143.5" ></text>
+</g>
+<g >
+<title>page_cache_async_ra (22,868,621,620 samples, 1.35%)</title><rect x="831.2" y="261" width="15.9" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="834.20" y="271.5" ></text>
+</g>
+<g >
+<title>memcmp@plt (272,224,161 samples, 0.02%)</title><rect x="292.3" y="469" width="0.2" height="15.0" fill="rgb(251,214,51)" rx="2" ry="2" />
+<text  x="295.34" y="479.5" ></text>
+</g>
+<g >
+<title>part_in_flight (902,658,333 samples, 0.05%)</title><rect x="845.3" y="37" width="0.6" height="15.0" fill="rgb(239,160,38)" rx="2" ry="2" />
+<text  x="848.29" y="47.5" ></text>
+</g>
+<g >
+<title>operator new (3,079,278,789 samples, 0.18%)</title><rect x="513.5" y="453" width="2.1" height="15.0" fill="rgb(216,51,12)" rx="2" ry="2" />
+<text  x="516.50" y="463.5" ></text>
+</g>
+<g >
+<title>__submit_bio (1,736,728,270 samples, 0.10%)</title><rect x="844.8" y="101" width="1.2" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="847.78" y="111.5" ></text>
+</g>
+<g >
+<title>__sysvec_apic_timer_interrupt (485,665,141 samples, 0.03%)</title><rect x="727.5" y="405" width="0.4" height="15.0" fill="rgb(242,173,41)" rx="2" ry="2" />
+<text  x="730.53" y="415.5" ></text>
+</g>
+<g >
+<title>std::ios_base::_M_dispose_callbacks (4,508,983,341 samples, 0.27%)</title><rect x="775.9" y="437" width="3.2" height="15.0" fill="rgb(233,130,31)" rx="2" ry="2" />
+<text  x="778.93" y="447.5" ></text>
+</g>
+<g >
+<title>sysvec_apic_timer_interrupt (3,099,274,307 samples, 0.18%)</title><rect x="1182.6" y="437" width="2.2" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="1185.61" y="447.5" ></text>
+</g>
+<g >
+<title>tick_nohz_highres_handler (2,223,760,230 samples, 0.13%)</title><rect x="1182.7" y="373" width="1.5" height="15.0" fill="rgb(215,50,11)" rx="2" ry="2" />
+<text  x="1185.68" y="383.5" ></text>
+</g>
+<g >
+<title>__handle_irq_event_percpu (191,783,799 samples, 0.01%)</title><rect x="286.1" y="373" width="0.1" height="15.0" fill="rgb(236,147,35)" rx="2" ry="2" />
+<text  x="289.06" y="383.5" ></text>
+</g>
+<g >
+<title>std::basic_ios&lt;char, std::char_traits&lt;char&gt; &gt;::init (133,851,685,484 samples, 7.91%)</title><rect x="552.0" y="437" width="93.4" height="15.0" fill="rgb(206,7,1)" rx="2" ry="2" />
+<text  x="555.01" y="447.5" >std::basic_..</text>
+</g>
+<g >
+<title>std::basic_filebuf&lt;char, std::char_traits&lt;char&gt; &gt;::underflow (144,789,808 samples, 0.01%)</title><rect x="788.2" y="469" width="0.2" height="15.0" fill="rgb(232,127,30)" rx="2" ry="2" />
+<text  x="791.25" y="479.5" ></text>
+</g>
+<g >
+<title>asm_sysvec_apic_timer_interrupt (172,154,206 samples, 0.01%)</title><rect x="289.8" y="469" width="0.1" height="15.0" fill="rgb(232,127,30)" rx="2" ry="2" />
+<text  x="292.81" y="479.5" ></text>
+</g>
+<g >
+<title>std::basic_filebuf&lt;char, std::char_traits&lt;char&gt; &gt;::underflow (36,770,806,936 samples, 2.17%)</title><rect x="824.0" y="453" width="25.6" height="15.0" fill="rgb(232,127,30)" rx="2" ry="2" />
+<text  x="827.01" y="463.5" >s..</text>
+</g>
+<g >
+<title>task_tick_fair (414,796,472 samples, 0.02%)</title><rect x="287.1" y="309" width="0.3" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="290.11" y="319.5" ></text>
+</g>
+<g >
+<title>folio_batch_move_lru (1,571,096,450 samples, 0.09%)</title><rect x="836.0" y="165" width="1.1" height="15.0" fill="rgb(207,10,2)" rx="2" ry="2" />
+<text  x="839.02" y="175.5" ></text>
+</g>
+<g >
+<title>iowrite16 (474,141,253 samples, 0.03%)</title><rect x="843.1" y="69" width="0.4" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="846.13" y="79.5" ></text>
+</g>
+<g >
+<title>__common_interrupt (209,549,017 samples, 0.01%)</title><rect x="286.1" y="421" width="0.1" height="15.0" fill="rgb(237,150,36)" rx="2" ry="2" />
+<text  x="289.05" y="431.5" ></text>
+</g>
+<g >
+<title>xas_descend (233,320,306 samples, 0.01%)</title><rect x="846.9" y="181" width="0.1" height="15.0" fill="rgb(215,47,11)" rx="2" ry="2" />
+<text  x="849.87" y="191.5" ></text>
+</g>
+<g >
+<title>sysvec_apic_timer_interrupt (2,402,807,586 samples, 0.14%)</title><rect x="286.2" y="437" width="1.7" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="289.24" y="447.5" ></text>
+</g>
+<g >
+<title>sysvec_apic_timer_interrupt (1,444,177,211 samples, 0.09%)</title><rect x="502.5" y="421" width="1.0" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="505.53" y="431.5" ></text>
+</g>
+<g >
+<title>scheduler_tick (156,947,232 samples, 0.01%)</title><rect x="503.8" y="325" width="0.1" height="15.0" fill="rgb(246,190,45)" rx="2" ry="2" />
+<text  x="506.79" y="335.5" ></text>
+</g>
+<g >
+<title>tick_nohz_highres_handler (358,330,983 samples, 0.02%)</title><rect x="727.6" y="357" width="0.2" height="15.0" fill="rgb(215,50,11)" rx="2" ry="2" />
+<text  x="730.55" y="367.5" ></text>
+</g>
+<g >
+<title>update_load_avg (242,578,563 samples, 0.01%)</title><rect x="1183.9" y="293" width="0.1" height="15.0" fill="rgb(240,165,39)" rx="2" ry="2" />
+<text  x="1186.88" y="303.5" ></text>
+</g>
+<g >
+<title>__mod_lruvec_state (271,279,131 samples, 0.02%)</title><rect x="836.8" y="117" width="0.2" height="15.0" fill="rgb(226,100,24)" rx="2" ry="2" />
+<text  x="839.77" y="127.5" ></text>
+</g>
+<g >
+<title>update_process_times (1,772,922,642 samples, 0.10%)</title><rect x="1183.0" y="341" width="1.2" height="15.0" fill="rgb(250,209,50)" rx="2" ry="2" />
+<text  x="1185.99" y="351.5" ></text>
+</g>
+<g >
+<title>get_page_from_freelist (4,358,135,883 samples, 0.26%)</title><rect x="839.5" y="117" width="3.1" height="15.0" fill="rgb(252,218,52)" rx="2" ry="2" />
+<text  x="842.52" y="127.5" ></text>
+</g>
+<g >
+<title>lapic_next_event (241,130,936 samples, 0.01%)</title><rect x="503.3" y="341" width="0.2" height="15.0" fill="rgb(205,4,0)" rx="2" ry="2" />
+<text  x="506.31" y="351.5" ></text>
+</g>
+<g >
+<title>asm_sysvec_apic_timer_interrupt (2,432,199,691 samples, 0.14%)</title><rect x="286.2" y="453" width="1.7" height="15.0" fill="rgb(232,127,30)" rx="2" ry="2" />
+<text  x="289.22" y="463.5" ></text>
+</g>
+<g >
+<title>ext4_inode_block_valid (159,399,619 samples, 0.01%)</title><rect x="844.5" y="117" width="0.1" height="15.0" fill="rgb(215,50,11)" rx="2" ry="2" />
+<text  x="847.47" y="127.5" ></text>
+</g>
+<g >
+<title>hrtimer_interrupt (145,038,036 samples, 0.01%)</title><rect x="757.0" y="373" width="0.1" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="760.02" y="383.5" ></text>
+</g>
+<g >
+<title>memcpy@plt (173,926,485 samples, 0.01%)</title><rect x="820.3" y="453" width="0.1" height="15.0" fill="rgb(224,88,21)" rx="2" ry="2" />
+<text  x="823.27" y="463.5" ></text>
+</g>
+<g >
+<title>clockevents_program_event (407,905,130 samples, 0.02%)</title><rect x="287.5" y="373" width="0.3" height="15.0" fill="rgb(244,182,43)" rx="2" ry="2" />
+<text  x="290.54" y="383.5" ></text>
+</g>
+<g >
+<title>std::map&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, LocationStats, std::less&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt;, std::allocator&lt;std::pair&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; const, LocationStats&gt; &gt; &gt;::operator[] (922,683,185 samples, 0.05%)</title><rect x="1189.3" y="485" width="0.7" height="15.0" fill="rgb(230,116,27)" rx="2" ry="2" />
+<text  x="1192.34" y="495.5" ></text>
+</g>
+<g >
+<title>rep_movs_alternative (3,437,791,955 samples, 0.20%)</title><rect x="827.6" y="261" width="2.4" height="15.0" fill="rgb(205,1,0)" rx="2" ry="2" />
+<text  x="830.57" y="271.5" ></text>
+</g>
+<g >
+<title>std::istream::sentry::sentry (23,866,790,579 samples, 1.41%)</title><rect x="740.5" y="437" width="16.6" height="15.0" fill="rgb(240,163,39)" rx="2" ry="2" />
+<text  x="743.48" y="447.5" ></text>
+</g>
+<g >
+<title>oneBrc (1,683,741,009,756 samples, 99.50%)</title><rect x="15.9" y="501" width="1174.1" height="15.0" fill="rgb(231,120,28)" rx="2" ry="2" />
+<text  x="18.89" y="511.5" >oneBrc</text>
+</g>
+<g >
+<title>std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;::_M_append (5,131,785,188 samples, 0.30%)</title><rect x="820.4" y="453" width="3.6" height="15.0" fill="rgb(222,79,19)" rx="2" ry="2" />
+<text  x="823.43" y="463.5" ></text>
+</g>
+<g >
+<title>std::locale::locale (10,898,618,199 samples, 0.64%)</title><rect x="647.8" y="437" width="7.6" height="15.0" fill="rgb(214,44,10)" rx="2" ry="2" />
+<text  x="650.76" y="447.5" ></text>
+</g>
+<g >
+<title>workingset_refault (2,338,285,315 samples, 0.14%)</title><rect x="837.3" y="181" width="1.6" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="840.25" y="191.5" ></text>
+</g>
+<g >
+<title>update_process_times (821,625,816 samples, 0.05%)</title><rect x="502.7" y="325" width="0.6" height="15.0" fill="rgb(250,209,50)" rx="2" ry="2" />
+<text  x="505.70" y="335.5" ></text>
+</g>
+<g >
+<title>update_process_times (174,445,249 samples, 0.01%)</title><rect x="503.8" y="341" width="0.1" height="15.0" fill="rgb(250,209,50)" rx="2" ry="2" />
+<text  x="506.78" y="351.5" ></text>
+</g>
+<g >
+<title>malloc (7,831,487,291 samples, 0.46%)</title><rect x="538.2" y="421" width="5.5" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="541.21" y="431.5" ></text>
+</g>
+<g >
+<title>std::map&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, LocationStats, std::less&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt;, std::allocator&lt;std::pair&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; const, LocationStats&gt; &gt; &gt;::operator[] (471,910,717,229 samples, 27.89%)</title><rect x="855.7" y="469" width="329.1" height="15.0" fill="rgb(230,116,27)" rx="2" ry="2" />
+<text  x="858.73" y="479.5" >std::map&lt;std::__cxx11::basic_string&lt;char, st..</text>
+</g>
+<g >
+<title>virtblk_add_req_batch (834,557,350 samples, 0.05%)</title><rect x="842.9" y="101" width="0.6" height="15.0" fill="rgb(216,52,12)" rx="2" ry="2" />
+<text  x="845.88" y="111.5" ></text>
+</g>
+<g >
+<title>tick_nohz_highres_handler (159,505,218 samples, 0.01%)</title><rect x="820.1" y="373" width="0.1" height="15.0" fill="rgb(215,50,11)" rx="2" ry="2" />
+<text  x="823.11" y="383.5" ></text>
+</g>
+<g >
+<title>asm_sysvec_apic_timer_interrupt (150,967,453 samples, 0.01%)</title><rect x="757.0" y="421" width="0.1" height="15.0" fill="rgb(232,127,30)" rx="2" ry="2" />
+<text  x="760.02" y="431.5" ></text>
+</g>
+<g >
+<title>rmqueue (885,028,021 samples, 0.05%)</title><rect x="841.9" y="101" width="0.6" height="15.0" fill="rgb(226,98,23)" rx="2" ry="2" />
+<text  x="844.93" y="111.5" ></text>
+</g>
+<g >
+<title>tick_sched_handle (839,432,279 samples, 0.05%)</title><rect x="502.7" y="341" width="0.6" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="505.68" y="351.5" ></text>
+</g>
+<g >
+<title>submit_bio (1,953,281,859 samples, 0.12%)</title><rect x="844.7" y="149" width="1.3" height="15.0" fill="rgb(207,13,3)" rx="2" ry="2" />
+<text  x="847.67" y="159.5" ></text>
+</g>
+<g >
+<title>asm_common_interrupt (317,008,892 samples, 0.02%)</title><rect x="1182.4" y="453" width="0.2" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="1185.37" y="463.5" ></text>
+</g>
+<g >
+<title>cfree (11,238,972,897 samples, 0.66%)</title><rect x="504.0" y="453" width="7.8" height="15.0" fill="rgb(223,86,20)" rx="2" ry="2" />
+<text  x="506.97" y="463.5" ></text>
+</g>
+<g >
+<title>__hrtimer_run_queues (162,485,619 samples, 0.01%)</title><rect x="820.1" y="389" width="0.1" height="15.0" fill="rgb(237,150,35)" rx="2" ry="2" />
+<text  x="823.11" y="399.5" ></text>
+</g>
+<g >
+<title>std::ios_base::_M_call_callbacks (5,716,938,149 samples, 0.34%)</title><rect x="771.9" y="437" width="4.0" height="15.0" fill="rgb(224,91,21)" rx="2" ry="2" />
+<text  x="774.94" y="447.5" ></text>
+</g>
+<g >
+<title>sysvec_apic_timer_interrupt (269,218,275 samples, 0.02%)</title><rect x="586.2" y="389" width="0.1" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="589.16" y="399.5" ></text>
+</g>
+<g >
+<title>sysvec_apic_timer_interrupt (230,582,205 samples, 0.01%)</title><rect x="820.1" y="437" width="0.2" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="823.11" y="447.5" ></text>
+</g>
+<g >
+<title>__mem_cgroup_charge (2,056,319,511 samples, 0.12%)</title><rect x="833.1" y="165" width="1.4" height="15.0" fill="rgb(218,60,14)" rx="2" ry="2" />
+<text  x="836.07" y="175.5" ></text>
+</g>
+<g >
+<title>security_file_permission (516,012,239 samples, 0.03%)</title><rect x="848.8" y="309" width="0.4" height="15.0" fill="rgb(225,96,23)" rx="2" ry="2" />
+<text  x="851.81" y="319.5" ></text>
+</g>
+<g >
+<title>asm_sysvec_apic_timer_interrupt (3,128,913,120 samples, 0.18%)</title><rect x="1182.6" y="453" width="2.2" height="15.0" fill="rgb(232,127,30)" rx="2" ry="2" />
+<text  x="1185.59" y="463.5" ></text>
+</g>
+<g >
+<title>touch_atime (618,893,902 samples, 0.04%)</title><rect x="847.3" y="277" width="0.5" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="850.33" y="287.5" ></text>
+</g>
+<g >
+<title>std::locale::locale (3,144,633,423 samples, 0.19%)</title><rect x="638.1" y="421" width="2.2" height="15.0" fill="rgb(214,44,10)" rx="2" ry="2" />
+<text  x="641.12" y="431.5" ></text>
+</g>
+<g >
+<title>asm_common_interrupt (159,781,631 samples, 0.01%)</title><rect x="502.4" y="437" width="0.1" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="505.40" y="447.5" ></text>
+</g>
+<g >
+<title>std::locale::id::_M_id (9,795,191,742 samples, 0.58%)</title><rect x="631.3" y="421" width="6.8" height="15.0" fill="rgb(222,82,19)" rx="2" ry="2" />
+<text  x="634.29" y="431.5" ></text>
+</g>
+<g >
+<title>std::istream::sentry::sentry (1,304,500,033 samples, 0.08%)</title><rect x="853.2" y="469" width="0.9" height="15.0" fill="rgb(240,163,39)" rx="2" ry="2" />
+<text  x="856.15" y="479.5" ></text>
+</g>
+<g >
+<title>operator new (182,964,414 samples, 0.01%)</title><rect x="736.6" y="421" width="0.1" height="15.0" fill="rgb(216,51,12)" rx="2" ry="2" />
+<text  x="739.62" y="431.5" ></text>
+</g>
+<g >
+<title>perf_adjust_freq_unthr_context (520,534,362 samples, 0.03%)</title><rect x="286.7" y="293" width="0.4" height="15.0" fill="rgb(236,146,35)" rx="2" ry="2" />
+<text  x="289.73" y="303.5" ></text>
+</g>
+<g >
+<title>tick_nohz_highres_handler (177,653,574 samples, 0.01%)</title><rect x="586.2" y="325" width="0.1" height="15.0" fill="rgb(215,50,11)" rx="2" ry="2" />
+<text  x="589.17" y="335.5" ></text>
+</g>
+<g >
+<title>__sysvec_apic_timer_interrupt (301,320,732 samples, 0.02%)</title><rect x="503.8" y="421" width="0.2" height="15.0" fill="rgb(242,173,41)" rx="2" ry="2" />
+<text  x="506.76" y="431.5" ></text>
+</g>
+<g >
+<title>x86_pmu_disable_all (233,648,629 samples, 0.01%)</title><rect x="502.9" y="229" width="0.1" height="15.0" fill="rgb(254,227,54)" rx="2" ry="2" />
+<text  x="505.85" y="239.5" ></text>
+</g>
+<g >
+<title>tick_sched_handle (1,812,832,491 samples, 0.11%)</title><rect x="1183.0" y="357" width="1.2" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="1185.96" y="367.5" ></text>
+</g>
+<g >
+<title>sysvec_apic_timer_interrupt (172,154,206 samples, 0.01%)</title><rect x="289.8" y="453" width="0.1" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="292.81" y="463.5" ></text>
+</g>
+<g >
+<title>scheduler_tick (201,310,172 samples, 0.01%)</title><rect x="502.2" y="293" width="0.1" height="15.0" fill="rgb(246,190,45)" rx="2" ry="2" />
+<text  x="505.17" y="303.5" ></text>
+</g>
+<g >
+<title>ksys_read (34,706,242,080 samples, 2.05%)</title><rect x="825.0" y="357" width="24.2" height="15.0" fill="rgb(229,113,27)" rx="2" ry="2" />
+<text  x="828.00" y="367.5" >k..</text>
+</g>
+<g >
+<title>update_process_times (233,693,053 samples, 0.01%)</title><rect x="502.1" y="309" width="0.2" height="15.0" fill="rgb(250,209,50)" rx="2" ry="2" />
+<text  x="505.15" y="319.5" ></text>
+</g>
+<g >
+<title>__sysvec_apic_timer_interrupt (257,365,381 samples, 0.02%)</title><rect x="586.2" y="373" width="0.1" height="15.0" fill="rgb(242,173,41)" rx="2" ry="2" />
+<text  x="589.16" y="383.5" ></text>
+</g>
+<g >
+<title>native_read_msr (227,739,236 samples, 0.01%)</title><rect x="502.9" y="213" width="0.1" height="15.0" fill="rgb(211,30,7)" rx="2" ry="2" />
+<text  x="505.86" y="223.5" ></text>
+</g>
+<g >
+<title>operator delete (581,742,436 samples, 0.03%)</title><rect x="1188.0" y="485" width="0.4" height="15.0" fill="rgb(247,196,46)" rx="2" ry="2" />
+<text  x="1190.99" y="495.5" ></text>
+</g>
+<g >
+<title>syscall_exit_to_user_mode (227,265,401 samples, 0.01%)</title><rect x="824.8" y="389" width="0.1" height="15.0" fill="rgb(251,211,50)" rx="2" ry="2" />
+<text  x="827.79" y="399.5" ></text>
+</g>
+<g >
+<title>tick_nohz_highres_handler (1,014,127,139 samples, 0.06%)</title><rect x="502.6" y="357" width="0.7" height="15.0" fill="rgb(215,50,11)" rx="2" ry="2" />
+<text  x="505.56" y="367.5" ></text>
+</g>
+<g >
+<title>x86_pmu_disable (316,691,039 samples, 0.02%)</title><rect x="502.8" y="261" width="0.2" height="15.0" fill="rgb(239,160,38)" rx="2" ry="2" />
+<text  x="505.80" y="271.5" ></text>
+</g>
+<g >
+<title>bio_alloc_bioset (269,520,425 samples, 0.02%)</title><rect x="844.2" y="149" width="0.2" height="15.0" fill="rgb(206,5,1)" rx="2" ry="2" />
+<text  x="847.25" y="159.5" ></text>
+</g>
+<g >
+<title>__lruvec_stat_mod_folio (810,870,229 samples, 0.05%)</title><rect x="832.5" y="165" width="0.6" height="15.0" fill="rgb(246,191,45)" rx="2" ry="2" />
+<text  x="835.50" y="175.5" ></text>
+</g>
+<g >
+<title>submit_bio_noacct (1,873,348,340 samples, 0.11%)</title><rect x="844.7" y="133" width="1.3" height="15.0" fill="rgb(211,30,7)" rx="2" ry="2" />
+<text  x="847.72" y="143.5" ></text>
+</g>
+<g >
+<title>__sysvec_apic_timer_interrupt (168,594,254 samples, 0.01%)</title><rect x="536.6" y="405" width="0.1" height="15.0" fill="rgb(242,173,41)" rx="2" ry="2" />
+<text  x="539.63" y="415.5" ></text>
+</g>
+<g >
+<title>tick_program_event (416,790,193 samples, 0.02%)</title><rect x="287.5" y="389" width="0.3" height="15.0" fill="rgb(241,166,39)" rx="2" ry="2" />
+<text  x="290.53" y="399.5" ></text>
+</g>
+<g >
+<title>[libc.so.6] (259,428,201,453 samples, 15.33%)</title><rect x="322.6" y="453" width="180.9" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="325.65" y="463.5" >[libc.so.6]</text>
+</g>
+<g >
+<title>mod_lruvec_state (1,145,360,684 samples, 0.07%)</title><rect x="838.0" y="149" width="0.8" height="15.0" fill="rgb(254,226,54)" rx="2" ry="2" />
+<text  x="840.99" y="159.5" ></text>
+</g>
+<g >
+<title>memchr@plt (1,612,056,157 samples, 0.10%)</title><rect x="512.0" y="453" width="1.1" height="15.0" fill="rgb(221,74,17)" rx="2" ry="2" />
+<text  x="514.97" y="463.5" ></text>
+</g>
+<g >
+<title>std::locale::~locale (11,012,627,242 samples, 0.65%)</title><rect x="623.6" y="405" width="7.7" height="15.0" fill="rgb(250,210,50)" rx="2" ry="2" />
+<text  x="626.61" y="415.5" ></text>
+</g>
+<g >
+<title>std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;::_M_mutate (1,293,846,583 samples, 0.08%)</title><rect x="739.6" y="437" width="0.9" height="15.0" fill="rgb(217,56,13)" rx="2" ry="2" />
+<text  x="742.58" y="447.5" ></text>
+</g>
+<g >
+<title>update_io_ticks (1,106,492,435 samples, 0.07%)</title><rect x="845.2" y="53" width="0.7" height="15.0" fill="rgb(235,141,33)" rx="2" ry="2" />
+<text  x="848.15" y="63.5" ></text>
+</g>
+<g >
+<title>ondemand_readahead (22,782,715,354 samples, 1.35%)</title><rect x="831.3" y="245" width="15.8" height="15.0" fill="rgb(251,213,51)" rx="2" ry="2" />
+<text  x="834.26" y="255.5" ></text>
+</g>
+<g >
+<title>tick_do_update_jiffies64 (295,574,322 samples, 0.02%)</title><rect x="1182.7" y="341" width="0.3" height="15.0" fill="rgb(208,14,3)" rx="2" ry="2" />
+<text  x="1185.75" y="351.5" ></text>
+</g>
+<g >
+<title>std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;::_M_mutate (4,058,282,133 samples, 0.24%)</title><rect x="736.7" y="421" width="2.9" height="15.0" fill="rgb(217,56,13)" rx="2" ry="2" />
+<text  x="739.75" y="431.5" ></text>
+</g>
+<g >
+<title>strtod@plt (352,565,767 samples, 0.02%)</title><rect x="1187.4" y="469" width="0.3" height="15.0" fill="rgb(238,154,36)" rx="2" ry="2" />
+<text  x="1190.44" y="479.5" ></text>
+</g>
+<g >
+<title>perf_adjust_freq_unthr_context (706,902,298 samples, 0.04%)</title><rect x="1183.2" y="293" width="0.5" height="15.0" fill="rgb(236,146,35)" rx="2" ry="2" />
+<text  x="1186.21" y="303.5" ></text>
+</g>
+<g >
+<title>lapic_next_event (381,615,546 samples, 0.02%)</title><rect x="287.6" y="357" width="0.2" height="15.0" fill="rgb(205,4,0)" rx="2" ry="2" />
+<text  x="290.55" y="367.5" ></text>
+</g>
+<g >
+<title>blk_mq_flush_plug_list.part.0 (1,160,429,183 samples, 0.07%)</title><rect x="842.8" y="133" width="0.8" height="15.0" fill="rgb(224,91,21)" rx="2" ry="2" />
+<text  x="845.82" y="143.5" ></text>
+</g>
+<g >
+<title>std::locale::~locale (2,396,573,534 samples, 0.14%)</title><rect x="854.1" y="469" width="1.6" height="15.0" fill="rgb(250,210,50)" rx="2" ry="2" />
+<text  x="857.06" y="479.5" ></text>
+</g>
+<g >
+<title>__hrtimer_run_queues (301,844,165 samples, 0.02%)</title><rect x="502.1" y="357" width="0.2" height="15.0" fill="rgb(237,150,35)" rx="2" ry="2" />
+<text  x="505.10" y="367.5" ></text>
+</g>
+<g >
+<title>std::istream::sentry::sentry (3,595,659,598 samples, 0.21%)</title><rect x="849.7" y="453" width="2.6" height="15.0" fill="rgb(240,163,39)" rx="2" ry="2" />
+<text  x="852.75" y="463.5" ></text>
+</g>
+<g >
+<title>main (1,692,209,686,667 samples, 100.00%)</title><rect x="10.0" y="581" width="1180.0" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
+<text  x="13.00" y="591.5" >main</text>
+</g>
+<g >
+<title>std::locale::~locale (6,292,091,720 samples, 0.37%)</title><rect x="782.4" y="453" width="4.4" height="15.0" fill="rgb(250,210,50)" rx="2" ry="2" />
+<text  x="785.40" y="463.5" ></text>
+</g>
+<g >
+<title>__mod_memcg_lruvec_state (182,429,962 samples, 0.01%)</title><rect x="836.8" y="101" width="0.1" height="15.0" fill="rgb(247,195,46)" rx="2" ry="2" />
+<text  x="839.80" y="111.5" ></text>
+</g>
+<g >
+<title>__blk_flush_plug (1,163,384,397 samples, 0.07%)</title><rect x="842.8" y="165" width="0.8" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="845.82" y="175.5" ></text>
+</g>
+<g >
+<title>std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;::_M_append (1,324,818,960 samples, 0.08%)</title><rect x="787.3" y="469" width="0.9" height="15.0" fill="rgb(222,79,19)" rx="2" ry="2" />
+<text  x="790.33" y="479.5" ></text>
+</g>
+<g >
+<title>hrtimer_interrupt (163,223,397 samples, 0.01%)</title><rect x="289.8" y="421" width="0.1" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="292.81" y="431.5" ></text>
+</g>
+<g >
+<title>__fdget_pos (376,531,310 samples, 0.02%)</title><rect x="825.1" y="341" width="0.2" height="15.0" fill="rgb(216,55,13)" rx="2" ry="2" />
+<text  x="828.09" y="351.5" ></text>
+</g>
+<g >
+<title>_start (1,683,741,009,756 samples, 99.50%)</title><rect x="15.9" y="565" width="1174.1" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
+<text  x="18.89" y="575.5" >_start</text>
+</g>
+<g >
+<title>xas_descend (162,515,109 samples, 0.01%)</title><rect x="835.2" y="149" width="0.1" height="15.0" fill="rgb(215,47,11)" rx="2" ry="2" />
+<text  x="838.20" y="159.5" ></text>
+</g>
+<g >
+<title>virtblk_add_req (295,651,648 samples, 0.02%)</title><rect x="842.9" y="85" width="0.2" height="15.0" fill="rgb(250,209,50)" rx="2" ry="2" />
+<text  x="845.90" y="95.5" ></text>
+</g>
+<g >
+<title>get_mem_cgroup_from_mm (321,791,582 samples, 0.02%)</title><rect x="833.5" y="149" width="0.2" height="15.0" fill="rgb(218,61,14)" rx="2" ry="2" />
+<text  x="836.49" y="159.5" ></text>
+</g>
+<g >
+<title>__filemap_add_folio (5,875,470,200 samples, 0.35%)</title><rect x="831.8" y="181" width="4.1" height="15.0" fill="rgb(229,113,27)" rx="2" ry="2" />
+<text  x="834.79" y="191.5" ></text>
+</g>
+<g >
+<title>__sysvec_apic_timer_interrupt (1,379,058,415 samples, 0.08%)</title><rect x="502.5" y="405" width="1.0" height="15.0" fill="rgb(242,173,41)" rx="2" ry="2" />
+<text  x="505.53" y="415.5" ></text>
+</g>
+<g >
+<title>__sysvec_apic_timer_interrupt (2,275,416,454 samples, 0.13%)</title><rect x="286.2" y="421" width="1.6" height="15.0" fill="rgb(242,173,41)" rx="2" ry="2" />
+<text  x="289.24" y="431.5" ></text>
+</g>
+<g >
+<title>std::basic_istream&lt;char, std::char_traits&lt;char&gt; &gt;&amp; std::getline&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; (91,645,924,418 samples, 5.42%)</title><rect x="788.4" y="469" width="63.9" height="15.0" fill="rgb(244,181,43)" rx="2" ry="2" />
+<text  x="791.35" y="479.5" >std::ba..</text>
+</g>
+<g >
+<title>__irqentry_text_start (1,724,438,646 samples, 0.10%)</title><rect x="10.0" y="533" width="1.2" height="15.0" fill="rgb(252,219,52)" rx="2" ry="2" />
+<text  x="13.03" y="543.5" ></text>
+</g>
+<g >
+<title>handle_irq_event (191,783,799 samples, 0.01%)</title><rect x="286.1" y="389" width="0.1" height="15.0" fill="rgb(209,19,4)" rx="2" ry="2" />
+<text  x="289.06" y="399.5" ></text>
+</g>
+<g >
+<title>memcpy@plt (268,749,222 samples, 0.02%)</title><rect x="292.5" y="469" width="0.2" height="15.0" fill="rgb(224,88,21)" rx="2" ry="2" />
+<text  x="295.53" y="479.5" ></text>
+</g>
+<g >
+<title>vfs_read (34,078,471,955 samples, 2.01%)</title><rect x="825.4" y="341" width="23.8" height="15.0" fill="rgb(224,88,21)" rx="2" ry="2" />
+<text  x="828.44" y="351.5" >v..</text>
+</g>
+<g >
+<title>asm_sysvec_apic_timer_interrupt (6,667,140,817 samples, 0.39%)</title><rect x="11.2" y="533" width="4.7" height="15.0" fill="rgb(232,127,30)" rx="2" ry="2" />
+<text  x="14.24" y="543.5" ></text>
+</g>
+<g >
+<title>timekeeping_advance (230,400,149 samples, 0.01%)</title><rect x="1182.8" y="309" width="0.2" height="15.0" fill="rgb(227,104,25)" rx="2" ry="2" />
+<text  x="1185.79" y="319.5" ></text>
+</g>
+<g >
+<title>update_process_times (272,595,375 samples, 0.02%)</title><rect x="727.6" y="325" width="0.2" height="15.0" fill="rgb(250,209,50)" rx="2" ry="2" />
+<text  x="730.61" y="335.5" ></text>
+</g>
+<g >
+<title>entry_SYSCALL_64 (180,242,226 samples, 0.01%)</title><rect x="824.3" y="421" width="0.1" height="15.0" fill="rgb(239,156,37)" rx="2" ry="2" />
+<text  x="827.29" y="431.5" ></text>
+</g>
+<g >
+<title>__libc_start_main (1,683,741,009,756 samples, 99.50%)</title><rect x="15.9" y="549" width="1174.1" height="15.0" fill="rgb(236,142,34)" rx="2" ry="2" />
+<text  x="18.89" y="559.5" >__libc_start_main</text>
+</g>
+<g >
+<title>cfree (2,651,733,378 samples, 0.16%)</title><rect x="289.9" y="469" width="1.9" height="15.0" fill="rgb(223,86,20)" rx="2" ry="2" />
+<text  x="292.93" y="479.5" ></text>
+</g>
+<g >
+<title>tick_nohz_highres_handler (286,977,391 samples, 0.02%)</title><rect x="502.1" y="341" width="0.2" height="15.0" fill="rgb(215,50,11)" rx="2" ry="2" />
+<text  x="505.11" y="351.5" ></text>
+</g>
+<g >
+<title>std::basic_istream&lt;char, std::char_traits&lt;char&gt; &gt;&amp; std::getline&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; (129,081,786,974 samples, 7.63%)</title><rect x="667.1" y="453" width="90.0" height="15.0" fill="rgb(244,181,43)" rx="2" ry="2" />
+<text  x="670.11" y="463.5" >std::basic..</text>
+</g>
+<g >
+<title>folio_add_lru (1,772,137,808 samples, 0.10%)</title><rect x="835.9" y="181" width="1.3" height="15.0" fill="rgb(208,17,4)" rx="2" ry="2" />
+<text  x="838.93" y="191.5" ></text>
+</g>
+<g >
+<title>malloc@plt (687,142,578 samples, 0.04%)</title><rect x="537.4" y="437" width="0.4" height="15.0" fill="rgb(246,192,46)" rx="2" ry="2" />
+<text  x="540.37" y="447.5" ></text>
+</g>
+<g >
+<title>tick_sched_handle (180,388,655 samples, 0.01%)</title><rect x="503.8" y="357" width="0.1" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="506.78" y="367.5" ></text>
+</g>
+<g >
+<title>native_read_msr (508,391,888 samples, 0.03%)</title><rect x="1183.3" y="229" width="0.4" height="15.0" fill="rgb(211,30,7)" rx="2" ry="2" />
+<text  x="1186.35" y="239.5" ></text>
+</g>
+<g >
+<title>[libc.so.6] (11,257,812,871 samples, 0.67%)</title><rect x="812.2" y="453" width="7.9" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="815.22" y="463.5" ></text>
+</g>
+<g >
+<title>asm_sysvec_apic_timer_interrupt (183,368,944 samples, 0.01%)</title><rect x="536.6" y="437" width="0.1" height="15.0" fill="rgb(232,127,30)" rx="2" ry="2" />
+<text  x="539.62" y="447.5" ></text>
+</g>
+<g >
+<title>operator new (8,346,418,727 samples, 0.49%)</title><rect x="537.8" y="437" width="5.9" height="15.0" fill="rgb(216,51,12)" rx="2" ry="2" />
+<text  x="540.85" y="447.5" ></text>
+</g>
+<g >
+<title>task_tick_fair (251,557,545 samples, 0.01%)</title><rect x="503.0" y="293" width="0.2" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="506.03" y="303.5" ></text>
+</g>
+<g >
+<title>ext4_mpage_readpages (3,995,124,608 samples, 0.24%)</title><rect x="843.7" y="165" width="2.7" height="15.0" fill="rgb(228,110,26)" rx="2" ry="2" />
+<text  x="846.65" y="175.5" ></text>
+</g>
+<g >
+<title>do_syscall_64 (35,424,552,174 samples, 2.09%)</title><rect x="824.5" y="405" width="24.7" height="15.0" fill="rgb(209,20,4)" rx="2" ry="2" />
+<text  x="827.52" y="415.5" >d..</text>
+</g>
+<g >
+<title>__rmqueue_pcplist (564,804,249 samples, 0.03%)</title><rect x="842.1" y="85" width="0.4" height="15.0" fill="rgb(230,118,28)" rx="2" ry="2" />
+<text  x="845.14" y="95.5" ></text>
+</g>
+<g >
+<title>malloc (879,089,689 samples, 0.05%)</title><rect x="536.8" y="437" width="0.6" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="539.75" y="447.5" ></text>
+</g>
+<g >
+<title>xa_load (541,696,140 samples, 0.03%)</title><rect x="846.0" y="149" width="0.4" height="15.0" fill="rgb(210,26,6)" rx="2" ry="2" />
+<text  x="849.03" y="159.5" ></text>
+</g>
+<g >
+<title>filemap_alloc_folio (5,436,118,391 samples, 0.32%)</title><rect x="839.0" y="197" width="3.8" height="15.0" fill="rgb(247,193,46)" rx="2" ry="2" />
+<text  x="841.99" y="207.5" ></text>
+</g>
+<g >
+<title>std::locale::~locale (4,384,307,741 samples, 0.26%)</title><rect x="642.3" y="421" width="3.1" height="15.0" fill="rgb(250,210,50)" rx="2" ry="2" />
+<text  x="645.29" y="431.5" ></text>
+</g>
+<g >
+<title>clockevents_program_event (252,941,173 samples, 0.01%)</title><rect x="503.3" y="357" width="0.2" height="15.0" fill="rgb(244,182,43)" rx="2" ry="2" />
+<text  x="506.30" y="367.5" ></text>
+</g>
+<g >
+<title>hrtimer_interrupt (1,367,271,108 samples, 0.08%)</title><rect x="502.5" y="389" width="1.0" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="505.53" y="399.5" ></text>
+</g>
+<g >
+<title>update_load_avg (216,574,715 samples, 0.01%)</title><rect x="287.2" y="293" width="0.2" height="15.0" fill="rgb(240,165,39)" rx="2" ry="2" />
+<text  x="290.24" y="303.5" ></text>
+</g>
+<g >
+<title>__fsnotify_parent (787,673,256 samples, 0.05%)</title><rect x="848.1" y="309" width="0.6" height="15.0" fill="rgb(225,96,23)" rx="2" ry="2" />
+<text  x="851.14" y="319.5" ></text>
+</g>
+<g >
+<title>filemap_get_read_batch (1,558,122,899 samples, 0.09%)</title><rect x="830.1" y="261" width="1.1" height="15.0" fill="rgb(231,123,29)" rx="2" ry="2" />
+<text  x="833.10" y="271.5" ></text>
+</g>
+<g >
+<title>rw_verify_area (1,936,548,992 samples, 0.11%)</title><rect x="847.8" y="325" width="1.4" height="15.0" fill="rgb(218,64,15)" rx="2" ry="2" />
+<text  x="850.83" y="335.5" ></text>
+</g>
+<g >
+<title>hrtimer_interrupt (2,939,890,944 samples, 0.17%)</title><rect x="1182.6" y="405" width="2.1" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="1185.62" y="415.5" ></text>
+</g>
+<g >
+<title>clockevents_program_event (528,619,827 samples, 0.03%)</title><rect x="1184.3" y="373" width="0.4" height="15.0" fill="rgb(244,182,43)" rx="2" ry="2" />
+<text  x="1187.30" y="383.5" ></text>
+</g>
+<g >
+<title>page_cache_ra_unbounded (22,657,988,110 samples, 1.34%)</title><rect x="831.3" y="213" width="15.8" height="15.0" fill="rgb(234,134,32)" rx="2" ry="2" />
+<text  x="834.31" y="223.5" ></text>
+</g>
+<g >
+<title>asm_sysvec_apic_timer_interrupt (242,405,684 samples, 0.01%)</title><rect x="820.1" y="453" width="0.2" height="15.0" fill="rgb(232,127,30)" rx="2" ry="2" />
+<text  x="823.10" y="463.5" ></text>
+</g>
+<g >
+<title>__handle_irq_event_percpu (269,952,951 samples, 0.02%)</title><rect x="1182.4" y="373" width="0.2" height="15.0" fill="rgb(236,147,35)" rx="2" ry="2" />
+<text  x="1185.37" y="383.5" ></text>
+</g>
+<g >
+<title>__hrtimer_run_queues (144,869,954 samples, 0.01%)</title><rect x="536.6" y="373" width="0.1" height="15.0" fill="rgb(237,150,35)" rx="2" ry="2" />
+<text  x="539.63" y="383.5" ></text>
+</g>
+<g >
+<title>apparmor_file_permission (403,725,726 samples, 0.02%)</title><rect x="848.9" y="293" width="0.3" height="15.0" fill="rgb(218,60,14)" rx="2" ry="2" />
+<text  x="851.89" y="303.5" ></text>
+</g>
+<g >
+<title>task_tick_fair (478,775,389 samples, 0.03%)</title><rect x="1183.7" y="309" width="0.4" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="1186.72" y="319.5" ></text>
+</g>
+<g >
+<title>read (36,331,050,532 samples, 2.15%)</title><rect x="824.2" y="437" width="25.3" height="15.0" fill="rgb(252,216,51)" rx="2" ry="2" />
+<text  x="827.20" y="447.5" >r..</text>
+</g>
+<g >
+<title>submit_bio_noacct_nocheck (1,802,036,713 samples, 0.11%)</title><rect x="844.8" y="117" width="1.2" height="15.0" fill="rgb(225,95,22)" rx="2" ry="2" />
+<text  x="847.77" y="127.5" ></text>
+</g>
+<g >
+<title>scheduler_tick (1,506,925,198 samples, 0.09%)</title><rect x="1183.1" y="325" width="1.1" height="15.0" fill="rgb(246,190,45)" rx="2" ry="2" />
+<text  x="1186.13" y="335.5" ></text>
+</g>
+<g >
+<title>bio_add_folio (263,486,987 samples, 0.02%)</title><rect x="844.1" y="149" width="0.1" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="847.06" y="159.5" ></text>
+</g>
+<g >
+<title>parseLine (469,355,552 samples, 0.03%)</title><rect x="1188.4" y="485" width="0.3" height="15.0" fill="rgb(249,204,48)" rx="2" ry="2" />
+<text  x="1191.39" y="495.5" ></text>
+</g>
+<g >
+<title>__hrtimer_run_queues (2,320,218,662 samples, 0.14%)</title><rect x="1182.6" y="389" width="1.6" height="15.0" fill="rgb(237,150,35)" rx="2" ry="2" />
+<text  x="1185.63" y="399.5" ></text>
+</g>
+<g >
+<title>__x64_sys_read (34,735,903,448 samples, 2.05%)</title><rect x="825.0" y="373" width="24.2" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="827.99" y="383.5" >_..</text>
+</g>
+<g >
+<title>sysvec_apic_timer_interrupt (177,470,233 samples, 0.01%)</title><rect x="536.6" y="421" width="0.1" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="539.63" y="431.5" ></text>
+</g>
+<g >
+<title>__mod_memcg_lruvec_state (446,915,631 samples, 0.03%)</title><rect x="838.3" y="117" width="0.3" height="15.0" fill="rgb(247,195,46)" rx="2" ry="2" />
+<text  x="841.33" y="127.5" ></text>
+</g>
+<g >
+<title>native_write_msr (241,130,936 samples, 0.01%)</title><rect x="503.3" y="325" width="0.2" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="506.31" y="335.5" ></text>
+</g>
+<g >
+<title>tick_sched_handle (1,395,144,108 samples, 0.08%)</title><rect x="286.5" y="357" width="1.0" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="289.53" y="367.5" ></text>
+</g>
+<g >
+<title>__memcpy_chk@plt (269,046,273 samples, 0.02%)</title><rect x="503.5" y="453" width="0.2" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="506.55" y="463.5" ></text>
+</g>
+<g >
+<title>accumulate[abi:cxx11] (1,680,445,858,396 samples, 99.30%)</title><rect x="15.9" y="485" width="1171.8" height="15.0" fill="rgb(241,169,40)" rx="2" ry="2" />
+<text  x="18.89" y="495.5" >accumulate[abi:cxx11]</text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (35,681,542,501 samples, 2.11%)</title><rect x="824.4" y="421" width="24.9" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="827.42" y="431.5" >e..</text>
+</g>
+<g >
+<title>asm_sysvec_apic_timer_interrupt (396,344,837 samples, 0.02%)</title><rect x="502.1" y="421" width="0.3" height="15.0" fill="rgb(232,127,30)" rx="2" ry="2" />
+<text  x="505.10" y="431.5" ></text>
+</g>
+<g >
+<title>std::ios_base::_M_dispose_callbacks (1,460,636,252 samples, 0.09%)</title><rect x="757.7" y="453" width="1.0" height="15.0" fill="rgb(233,130,31)" rx="2" ry="2" />
+<text  x="760.70" y="463.5" ></text>
+</g>
+<g >
+<title>blk_mq_submit_bio (1,686,393,269 samples, 0.10%)</title><rect x="844.8" y="85" width="1.2" height="15.0" fill="rgb(224,89,21)" rx="2" ry="2" />
+<text  x="847.81" y="95.5" ></text>
+</g>
+<g >
+<title>std::istream::sentry::sentry (2,407,352,525 samples, 0.14%)</title><rect x="779.1" y="453" width="1.6" height="15.0" fill="rgb(240,163,39)" rx="2" ry="2" />
+<text  x="782.07" y="463.5" ></text>
+</g>
+<g >
+<title>__hrtimer_run_queues (218,395,194 samples, 0.01%)</title><rect x="503.8" y="389" width="0.1" height="15.0" fill="rgb(237,150,35)" rx="2" ry="2" />
+<text  x="506.76" y="399.5" ></text>
+</g>
+<g >
+<title>idr_find (159,730,827 samples, 0.01%)</title><rect x="837.9" y="133" width="0.1" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
+<text  x="840.85" y="143.5" ></text>
+</g>
+<g >
+<title>std::__cxx11::basic_istringstream&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;::basic_istringstream (200,364,417,134 samples, 11.84%)</title><rect x="515.6" y="453" width="139.8" height="15.0" fill="rgb(232,126,30)" rx="2" ry="2" />
+<text  x="518.65" y="463.5" >std::__cxx11::bas..</text>
+</g>
+<g >
+<title>__hrtimer_run_queues (186,597,115 samples, 0.01%)</title><rect x="586.2" y="341" width="0.1" height="15.0" fill="rgb(237,150,35)" rx="2" ry="2" />
+<text  x="589.16" y="351.5" ></text>
+</g>
+<g >
+<title>tick_sched_handle (278,510,214 samples, 0.02%)</title><rect x="727.6" y="341" width="0.2" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="730.61" y="351.5" ></text>
+</g>
+<g >
+<title>std::ios_base::_M_init (64,448,359,269 samples, 3.81%)</title><rect x="586.3" y="421" width="45.0" height="15.0" fill="rgb(228,107,25)" rx="2" ry="2" />
+<text  x="589.35" y="431.5" >std:..</text>
+</g>
+<g >
+<title>tick_sched_handle (236,665,194 samples, 0.01%)</title><rect x="502.1" y="325" width="0.2" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="505.15" y="335.5" ></text>
+</g>
+<g >
+<title>update_wall_time (248,233,068 samples, 0.01%)</title><rect x="1182.8" y="325" width="0.2" height="15.0" fill="rgb(207,11,2)" rx="2" ry="2" />
+<text  x="1185.78" y="335.5" ></text>
+</g>
+<g >
+<title>virtqueue_notify (477,114,721 samples, 0.03%)</title><rect x="843.1" y="85" width="0.4" height="15.0" fill="rgb(231,120,28)" rx="2" ry="2" />
+<text  x="846.12" y="95.5" ></text>
+</g>
+<g >
+<title>hrtimer_interrupt (168,594,254 samples, 0.01%)</title><rect x="536.6" y="389" width="0.1" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="539.63" y="399.5" ></text>
+</g>
+<g >
+<title>ext4_file_read_iter (30,937,058,168 samples, 1.83%)</title><rect x="826.2" y="325" width="21.6" height="15.0" fill="rgb(244,180,43)" rx="2" ry="2" />
+<text  x="829.25" y="335.5" >e..</text>
+</g>
+<g >
+<title>timekeeping_advance (195,159,430 samples, 0.01%)</title><rect x="286.4" y="309" width="0.1" height="15.0" fill="rgb(227,104,25)" rx="2" ry="2" />
+<text  x="289.38" y="319.5" ></text>
+</g>
+<g >
+<title>asm_sysvec_apic_timer_interrupt (269,218,275 samples, 0.02%)</title><rect x="586.2" y="405" width="0.1" height="15.0" fill="rgb(232,127,30)" rx="2" ry="2" />
+<text  x="589.16" y="415.5" ></text>
+</g>
+<g >
+<title>page_cache_ra_order (22,776,767,864 samples, 1.35%)</title><rect x="831.3" y="229" width="15.8" height="15.0" fill="rgb(223,83,20)" rx="2" ry="2" />
+<text  x="834.26" y="239.5" ></text>
+</g>
+<g >
+<title>xas_find_conflict (552,020,107 samples, 0.03%)</title><rect x="835.0" y="165" width="0.4" height="15.0" fill="rgb(206,8,1)" rx="2" ry="2" />
+<text  x="837.97" y="175.5" ></text>
+</g>
+<g >
+<title>xas_store (603,620,621 samples, 0.04%)</title><rect x="835.5" y="165" width="0.4" height="15.0" fill="rgb(207,9,2)" rx="2" ry="2" />
+<text  x="838.47" y="175.5" ></text>
+</g>
+<g >
+<title>std::basic_ios&lt;char, std::char_traits&lt;char&gt; &gt;::clear (3,227,912,151 samples, 0.19%)</title><rect x="662.3" y="453" width="2.2" height="15.0" fill="rgb(220,71,16)" rx="2" ry="2" />
+<text  x="665.29" y="463.5" ></text>
+</g>
+<g >
+<title>std::ios_base::_M_init (3,459,164,678 samples, 0.20%)</title><rect x="645.4" y="437" width="2.4" height="15.0" fill="rgb(228,107,25)" rx="2" ry="2" />
+<text  x="648.35" y="447.5" ></text>
+</g>
+<g >
+<title>common_interrupt (317,008,892 samples, 0.02%)</title><rect x="1182.4" y="437" width="0.2" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="1185.37" y="447.5" ></text>
+</g>
+<g >
+<title>tick_program_event (255,877,584 samples, 0.02%)</title><rect x="503.3" y="373" width="0.2" height="15.0" fill="rgb(241,166,39)" rx="2" ry="2" />
+<text  x="506.30" y="383.5" ></text>
+</g>
+<g >
+<title>update_load_avg (159,517,743 samples, 0.01%)</title><rect x="503.1" y="277" width="0.1" height="15.0" fill="rgb(240,165,39)" rx="2" ry="2" />
+<text  x="506.09" y="287.5" ></text>
+</g>
+<g >
+<title>vring_interrupt (191,783,799 samples, 0.01%)</title><rect x="286.1" y="357" width="0.1" height="15.0" fill="rgb(254,228,54)" rx="2" ry="2" />
+<text  x="289.06" y="367.5" ></text>
+</g>
+<g >
+<title>update_wall_time (206,973,752 samples, 0.01%)</title><rect x="286.4" y="325" width="0.1" height="15.0" fill="rgb(207,11,2)" rx="2" ry="2" />
+<text  x="289.38" y="335.5" ></text>
+</g>
+<g >
+<title>strtod (3,782,291,964 samples, 0.22%)</title><rect x="1184.8" y="469" width="2.6" height="15.0" fill="rgb(222,80,19)" rx="2" ry="2" />
+<text  x="1187.80" y="479.5" ></text>
+</g>
+<g >
+<title>__errno_location (2,548,460,680 samples, 0.15%)</title><rect x="288.0" y="469" width="1.7" height="15.0" fill="rgb(233,130,31)" rx="2" ry="2" />
+<text  x="290.95" y="479.5" ></text>
+</g>
+<g >
+<title>hrtimer_interrupt (254,383,577 samples, 0.02%)</title><rect x="586.2" y="357" width="0.1" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="589.16" y="367.5" ></text>
+</g>
+<g >
+<title>_find_next_bit (153,599,579 samples, 0.01%)</title><rect x="845.2" y="37" width="0.1" height="15.0" fill="rgb(230,116,27)" rx="2" ry="2" />
+<text  x="848.17" y="47.5" ></text>
+</g>
+<g >
+<title>perf_event_task_tick (349,213,562 samples, 0.02%)</title><rect x="502.8" y="293" width="0.2" height="15.0" fill="rgb(205,3,0)" rx="2" ry="2" />
+<text  x="505.78" y="303.5" ></text>
+</g>
+<g >
+<title>alloc_pages (5,231,555,056 samples, 0.31%)</title><rect x="839.1" y="165" width="3.6" height="15.0" fill="rgb(210,25,6)" rx="2" ry="2" />
+<text  x="842.10" y="175.5" ></text>
+</g>
+<g >
+<title>memcpy@plt (578,450,044 samples, 0.03%)</title><rect x="513.1" y="453" width="0.4" height="15.0" fill="rgb(224,88,21)" rx="2" ry="2" />
+<text  x="516.09" y="463.5" ></text>
+</g>
+<g >
+<title>native_read_msr (366,531,910 samples, 0.02%)</title><rect x="286.8" y="229" width="0.3" height="15.0" fill="rgb(211,30,7)" rx="2" ry="2" />
+<text  x="289.83" y="239.5" ></text>
+</g>
+<g >
+<title>malloc (2,113,325,477 samples, 0.12%)</title><rect x="514.2" y="437" width="1.4" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="517.17" y="447.5" ></text>
+</g>
+<g >
+<title>__hrtimer_run_queues (1,070,278,572 samples, 0.06%)</title><rect x="502.5" y="373" width="0.8" height="15.0" fill="rgb(237,150,35)" rx="2" ry="2" />
+<text  x="505.53" y="383.5" ></text>
+</g>
+<g >
+<title>perf_adjust_freq_unthr_context (340,289,311 samples, 0.02%)</title><rect x="502.8" y="277" width="0.2" height="15.0" fill="rgb(236,146,35)" rx="2" ry="2" />
+<text  x="505.78" y="287.5" ></text>
+</g>
+<g >
+<title>memchr@plt (740,660,647 samples, 0.04%)</title><rect x="291.8" y="469" width="0.5" height="15.0" fill="rgb(221,74,17)" rx="2" ry="2" />
+<text  x="294.82" y="479.5" ></text>
+</g>
+<g >
+<title>virtblk_done (252,204,185 samples, 0.01%)</title><rect x="1182.4" y="341" width="0.2" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="1185.39" y="351.5" ></text>
+</g>
+<g >
+<title>common_interrupt (150,879,896 samples, 0.01%)</title><rect x="502.4" y="421" width="0.1" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="505.40" y="431.5" ></text>
+</g>
+<g >
+<title>std::locale::locale (2,371,918,480 samples, 0.14%)</title><rect x="780.7" y="453" width="1.7" height="15.0" fill="rgb(214,44,10)" rx="2" ry="2" />
+<text  x="783.75" y="463.5" ></text>
+</g>
+<g >
+<title>syscall_return_via_sysret (159,742,314 samples, 0.01%)</title><rect x="849.4" y="421" width="0.1" height="15.0" fill="rgb(229,113,27)" rx="2" ry="2" />
+<text  x="852.43" y="431.5" ></text>
+</g>
+<g >
+<title>native_write_msr (381,615,546 samples, 0.02%)</title><rect x="287.6" y="341" width="0.2" height="15.0" fill="rgb(237,151,36)" rx="2" ry="2" />
+<text  x="290.55" y="351.5" ></text>
+</g>
+<g >
+<title>xas_descend (311,521,779 samples, 0.02%)</title><rect x="830.9" y="229" width="0.2" height="15.0" fill="rgb(215,47,11)" rx="2" ry="2" />
+<text  x="833.86" y="239.5" ></text>
+</g>
+<g >
+<title>virtqueue_add_sgs (233,575,990 samples, 0.01%)</title><rect x="842.9" y="69" width="0.2" height="15.0" fill="rgb(243,177,42)" rx="2" ry="2" />
+<text  x="845.94" y="79.5" ></text>
+</g>
+<g >
+<title>clear_page_rep (2,866,700,471 samples, 0.17%)</title><rect x="839.8" y="101" width="2.0" height="15.0" fill="rgb(253,221,52)" rx="2" ry="2" />
+<text  x="842.84" y="111.5" ></text>
+</g>
+<g >
+<title>__alloc_pages (4,787,409,364 samples, 0.28%)</title><rect x="839.3" y="133" width="3.3" height="15.0" fill="rgb(233,129,30)" rx="2" ry="2" />
+<text  x="842.26" y="143.5" ></text>
+</g>
+<g >
+<title>handle_irq_event (275,876,592 samples, 0.02%)</title><rect x="1182.4" y="389" width="0.2" height="15.0" fill="rgb(209,19,4)" rx="2" ry="2" />
+<text  x="1185.37" y="399.5" ></text>
+</g>
+<g >
+<title>mem_cgroup_commit_charge (716,078,820 samples, 0.04%)</title><rect x="833.7" y="149" width="0.5" height="15.0" fill="rgb(239,158,37)" rx="2" ry="2" />
+<text  x="836.71" y="159.5" ></text>
+</g>
+<g >
+<title>parseLine (707,706,423,195 samples, 41.82%)</title><rect x="293.4" y="469" width="493.5" height="15.0" fill="rgb(249,204,48)" rx="2" ry="2" />
+<text  x="296.36" y="479.5" >parseLine</text>
+</g>
+<g >
+<title>__mod_lruvec_state (544,345,971 samples, 0.03%)</title><rect x="832.7" y="149" width="0.3" height="15.0" fill="rgb(226,100,24)" rx="2" ry="2" />
+<text  x="835.67" y="159.5" ></text>
+</g>
+<g >
+<title>std::ios_base::_M_call_callbacks (823,321,381 samples, 0.05%)</title><rect x="757.1" y="453" width="0.6" height="15.0" fill="rgb(224,91,21)" rx="2" ry="2" />
+<text  x="760.12" y="463.5" ></text>
+</g>
+<g >
+<title>filemap_get_pages (24,763,841,243 samples, 1.46%)</title><rect x="830.0" y="277" width="17.2" height="15.0" fill="rgb(216,53,12)" rx="2" ry="2" />
+<text  x="832.98" y="287.5" ></text>
+</g>
+<g >
+<title>__sysvec_apic_timer_interrupt (2,960,545,505 samples, 0.17%)</title><rect x="1182.6" y="421" width="2.1" height="15.0" fill="rgb(242,173,41)" rx="2" ry="2" />
+<text  x="1185.61" y="431.5" ></text>
+</g>
+<g >
+<title>__hrtimer_run_queues (1,799,753,655 samples, 0.11%)</title><rect x="286.3" y="389" width="1.2" height="15.0" fill="rgb(237,150,35)" rx="2" ry="2" />
+<text  x="289.25" y="399.5" ></text>
+</g>
+<g >
+<title>sysvec_apic_timer_interrupt (503,166,554 samples, 0.03%)</title><rect x="727.5" y="421" width="0.4" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="730.53" y="431.5" ></text>
+</g>
+<g >
+<title>operator new (284,076,600 samples, 0.02%)</title><rect x="293.2" y="469" width="0.2" height="15.0" fill="rgb(216,51,12)" rx="2" ry="2" />
+<text  x="296.16" y="479.5" ></text>
+</g>
+<g >
+<title>std::codecvt&lt;char, char, __mbstate_t&gt;::do_always_noconv (144,999,015 samples, 0.01%)</title><rect x="849.6" y="453" width="0.1" height="15.0" fill="rgb(211,31,7)" rx="2" ry="2" />
+<text  x="852.65" y="463.5" ></text>
+</g>
+<g >
+<title>[libc.so.6] (366,759,243,897 samples, 21.67%)</title><rect x="32.2" y="469" width="255.8" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="35.20" y="479.5" >[libc.so.6]</text>
+</g>
+<g >
+<title>std::locale::locale (11,755,254,262 samples, 0.69%)</title><rect x="606.0" y="405" width="8.2" height="15.0" fill="rgb(214,44,10)" rx="2" ry="2" />
+<text  x="609.00" y="415.5" ></text>
+</g>
+<g >
+<title>asm_sysvec_apic_timer_interrupt (309,973,850 samples, 0.02%)</title><rect x="503.8" y="453" width="0.2" height="15.0" fill="rgb(232,127,30)" rx="2" ry="2" />
+<text  x="506.75" y="463.5" ></text>
+</g>
+<g >
+<title>virtblk_prep_rq.isra.0 (245,803,361 samples, 0.01%)</title><rect x="843.5" y="101" width="0.1" height="15.0" fill="rgb(247,193,46)" rx="2" ry="2" />
+<text  x="846.46" y="111.5" ></text>
+</g>
+<g >
+<title>rmqueue_bulk (414,232,745 samples, 0.02%)</title><rect x="842.2" y="69" width="0.3" height="15.0" fill="rgb(235,138,33)" rx="2" ry="2" />
+<text  x="845.24" y="79.5" ></text>
+</g>
+<g >
+<title>std::basic_ios&lt;char, std::char_traits&lt;char&gt; &gt;::_M_cache_locale (41,674,457,081 samples, 2.46%)</title><rect x="557.3" y="421" width="29.0" height="15.0" fill="rgb(223,86,20)" rx="2" ry="2" />
+<text  x="560.29" y="431.5" >st..</text>
+</g>
+<g >
+<title>__hrtimer_run_queues (382,044,936 samples, 0.02%)</title><rect x="727.5" y="373" width="0.3" height="15.0" fill="rgb(237,150,35)" rx="2" ry="2" />
+<text  x="730.53" y="383.5" ></text>
+</g>
+<g >
+<title>read (8,391,579,463 samples, 0.50%)</title><rect x="10.0" y="549" width="5.9" height="15.0" fill="rgb(252,216,51)" rx="2" ry="2" />
+<text  x="13.03" y="559.5" ></text>
+</g>
+<g >
+<title>filemap_add_folio (10,575,084,104 samples, 0.62%)</title><rect x="831.6" y="197" width="7.4" height="15.0" fill="rgb(207,9,2)" rx="2" ry="2" />
+<text  x="834.61" y="207.5" ></text>
+</g>
+<g >
+<title>std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;::_M_create (1,629,337,774 samples, 0.10%)</title><rect x="656.7" y="453" width="1.1" height="15.0" fill="rgb(248,198,47)" rx="2" ry="2" />
+<text  x="659.68" y="463.5" ></text>
+</g>
+<g >
+<title>__blk_mq_alloc_requests (225,196,584 samples, 0.01%)</title><rect x="844.9" y="69" width="0.2" height="15.0" fill="rgb(248,199,47)" rx="2" ry="2" />
+<text  x="847.90" y="79.5" ></text>
+</g>
+<g >
+<title>__mod_memcg_lruvec_state (272,726,073 samples, 0.02%)</title><rect x="832.8" y="133" width="0.1" height="15.0" fill="rgb(247,195,46)" rx="2" ry="2" />
+<text  x="835.76" y="143.5" ></text>
+</g>
+<g >
+<title>lapic_next_event (502,068,314 samples, 0.03%)</title><rect x="1184.3" y="357" width="0.4" height="15.0" fill="rgb(205,4,0)" rx="2" ry="2" />
+<text  x="1187.31" y="367.5" ></text>
+</g>
+<g >
+<title>vring_interrupt (264,086,002 samples, 0.02%)</title><rect x="1182.4" y="357" width="0.2" height="15.0" fill="rgb(254,228,54)" rx="2" ry="2" />
+<text  x="1185.38" y="367.5" ></text>
+</g>
+<g >
+<title>operator delete (637,741,281 samples, 0.04%)</title><rect x="292.7" y="469" width="0.5" height="15.0" fill="rgb(247,196,46)" rx="2" ry="2" />
+<text  x="295.72" y="479.5" ></text>
+</g>
+<g >
+<title>lru_gen_add_folio (745,306,572 samples, 0.04%)</title><rect x="836.5" y="133" width="0.5" height="15.0" fill="rgb(216,53,12)" rx="2" ry="2" />
+<text  x="839.51" y="143.5" ></text>
+</g>
+<g >
+<title>[libstdc++.so.6.0.33] (6,256,896,155 samples, 0.37%)</title><rect x="532.2" y="437" width="4.4" height="15.0" fill="rgb(216,51,12)" rx="2" ry="2" />
+<text  x="535.24" y="447.5" ></text>
+</g>
+<g >
+<title>tick_nohz_highres_handler (1,720,160,517 samples, 0.10%)</title><rect x="286.3" y="373" width="1.2" height="15.0" fill="rgb(215,50,11)" rx="2" ry="2" />
+<text  x="289.30" y="383.5" ></text>
+</g>
+<g >
+<title>handle_edge_irq (209,549,017 samples, 0.01%)</title><rect x="286.1" y="405" width="0.1" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="289.05" y="415.5" ></text>
+</g>
+<g >
+<title>x86_pmu_disable_all (526,180,856 samples, 0.03%)</title><rect x="1183.3" y="245" width="0.4" height="15.0" fill="rgb(254,227,54)" rx="2" ry="2" />
+<text  x="1186.33" y="255.5" ></text>
+</g>
+<g >
+<title>virtio_queue_rqs (1,121,828,631 samples, 0.07%)</title><rect x="842.8" y="117" width="0.8" height="15.0" fill="rgb(208,17,4)" rx="2" ry="2" />
+<text  x="845.85" y="127.5" ></text>
+</g>
+<g >
+<title>filemap_read (30,460,629,241 samples, 1.80%)</title><rect x="826.5" y="293" width="21.3" height="15.0" fill="rgb(246,192,46)" rx="2" ry="2" />
+<text  x="829.53" y="303.5" >f..</text>
+</g>
+<g >
+<title>tick_do_update_jiffies64 (251,161,059 samples, 0.01%)</title><rect x="286.3" y="341" width="0.2" height="15.0" fill="rgb(208,14,3)" rx="2" ry="2" />
+<text  x="289.35" y="351.5" ></text>
+</g>
+<g >
+<title>hrtimer_interrupt (2,263,593,061 samples, 0.13%)</title><rect x="286.2" y="405" width="1.6" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="289.25" y="415.5" ></text>
+</g>
+<g >
+<title>blk_mq_flush_plug_list (1,163,384,397 samples, 0.07%)</title><rect x="842.8" y="149" width="0.8" height="15.0" fill="rgb(215,46,11)" rx="2" ry="2" />
+<text  x="845.82" y="159.5" ></text>
+</g>
+<g >
+<title>amd_pmu_disable_all (304,826,108 samples, 0.02%)</title><rect x="502.8" y="245" width="0.2" height="15.0" fill="rgb(213,38,9)" rx="2" ry="2" />
+<text  x="505.80" y="255.5" ></text>
+</g>
+<g >
+<title>alloc_pages_mpol (5,139,663,473 samples, 0.30%)</title><rect x="839.2" y="149" width="3.5" height="15.0" fill="rgb(254,227,54)" rx="2" ry="2" />
+<text  x="842.15" y="159.5" ></text>
+</g>
+<g >
+<title>asm_sysvec_apic_timer_interrupt (506,098,527 samples, 0.03%)</title><rect x="727.5" y="437" width="0.4" height="15.0" fill="rgb(232,127,30)" rx="2" ry="2" />
+<text  x="730.53" y="447.5" ></text>
+</g>
+<g >
+<title>std::ios_base::~ios_base (1,285,258,363 samples, 0.08%)</title><rect x="852.3" y="469" width="0.9" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="855.26" y="479.5" ></text>
+</g>
+<g >
+<title>malloc (1,947,123,549 samples, 0.12%)</title><rect x="738.2" y="389" width="1.4" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="741.22" y="399.5" ></text>
+</g>
+<g >
+<title>hrtimer_interrupt (372,809,226 samples, 0.02%)</title><rect x="502.1" y="373" width="0.3" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="505.10" y="383.5" ></text>
+</g>
+<g >
+<title>xa_load (755,070,029 samples, 0.04%)</title><rect x="846.5" y="197" width="0.6" height="15.0" fill="rgb(210,26,6)" rx="2" ry="2" />
+<text  x="849.54" y="207.5" ></text>
+</g>
+<g >
+<title>mem_cgroup_from_id (212,790,070 samples, 0.01%)</title><rect x="837.8" y="149" width="0.2" height="15.0" fill="rgb(233,130,31)" rx="2" ry="2" />
+<text  x="840.84" y="159.5" ></text>
+</g>
+<g >
+<title>memcpy@plt (1,003,619,500 samples, 0.06%)</title><rect x="727.9" y="437" width="0.7" height="15.0" fill="rgb(224,88,21)" rx="2" ry="2" />
+<text  x="730.89" y="447.5" ></text>
+</g>
+<g >
+<title>std::__cxx11::basic_stringbuf&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;::underflow (4,801,527,073 samples, 0.28%)</title><rect x="658.9" y="453" width="3.4" height="15.0" fill="rgb(238,153,36)" rx="2" ry="2" />
+<text  x="661.94" y="463.5" ></text>
+</g>
+<g >
+<title>std::__cxx11::basic_stringbuf&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;::_M_sync (1,612,589,991 samples, 0.10%)</title><rect x="657.8" y="453" width="1.1" height="15.0" fill="rgb(232,126,30)" rx="2" ry="2" />
+<text  x="660.82" y="463.5" ></text>
+</g>
+<g >
+<title>ext4_map_blocks (277,670,400 samples, 0.02%)</title><rect x="844.4" y="149" width="0.2" height="15.0" fill="rgb(247,196,46)" rx="2" ry="2" />
+<text  x="847.44" y="159.5" ></text>
+</g>
+<g >
+<title>copy_page_to_iter (4,114,492,964 samples, 0.24%)</title><rect x="827.1" y="277" width="2.9" height="15.0" fill="rgb(209,22,5)" rx="2" ry="2" />
+<text  x="830.11" y="287.5" ></text>
+</g>
+<g >
+<title>xas_load (789,956,845 samples, 0.05%)</title><rect x="830.6" y="245" width="0.6" height="15.0" fill="rgb(217,59,14)" rx="2" ry="2" />
+<text  x="833.62" y="255.5" ></text>
+</g>
 </g>
 </svg>
