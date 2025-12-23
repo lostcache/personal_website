@@ -1,7 +1,7 @@
 ---
 title: "The 1🐝🏎️ Challenge"
-description: "My attempt at the legendary 1🐝🏎️ challenge. (No CPUs were harmed in the making of this blog post. RAM? Maybe.)"
-pubDate: "Dec 16 2025"
+description: "My attempt at the legendary 1🐝🏎️ challenge. (No RAM were harmed in the making of this blog post. CPU? Maybe.)"
+pubDate: "Last Updated, Dec 23 2025"
 ---
 
 ### The Challenge 👉 [1🐝🏎️](https://github.com/gunnarmorling/1brc)
@@ -158,17 +158,18 @@ The biggest compoenets of runtime are **parseLine()**, **libc.so** and **std::ma
 
 A simple observation is that the process is easily parallelisable map reduce style. this should naturally reduce the runtime and better utilize the resources.
 
-The challenge however would be to minimize any unnecessay intermediate memory allocations as copy is the default semantics of cpp and lot of copying occurs under the hood as cpp does an incredible job at hiding underlying behaviour without any warning. 
+The challenge however would be to minimize any unnecessay intermediate memory allocations as copy is the default semantics of cpp and lot of copying occurs under the hood as cpp does an incredible job at hiding underlying behaviour without any warning.
 
 <object
-type="image/jpg"
-data = "/i_love_zig.jpg"
-style={{ width: "30%", display: "flex",  }}
+  type="image/jpg"
+  data="/i_love_zig.jpg"
+  style={{ width: "30%", display: "flex" }}
 />
 
 TODO:
-1) process the file in batches in parallel using threads.
-2) Minimize memory allocations.
+
+1. process the file in batches in parallel using threads.
+2. Minimize memory allocations.
 
 ```cpp title="main.cpp"
 #include <algorithm>
@@ -436,7 +437,7 @@ int main(int argc, char* argv[]) {
 }
 ```
 
-*Phew...*
+_Phew..._
 
 For this version I went above and beyond to minimize unnecessary memory allocations especially the ones that are by-product of string operations.
 
@@ -444,7 +445,7 @@ For this version I went above and beyond to minimize unnecessary memory allocati
 
 It's sooo nice to not have to wait 10 minutes.
 
-Let's look at the 🔥📊 to get a better idea. 
+Let's look at the 🔥📊 to get a better idea.
 
 <object
   type="image/svg+xml"
@@ -456,7 +457,6 @@ Okay the program spends most of the time in **processLines()** function and **li
 
 **std::map\<...\>()** is a red-black tree and so we cannot reserve memory before hand and adds memory as elements are inserted which is relatively slower.
 
-
 And the real culprit **O(log n)** complexity inserts and lookups don't help either especially when there are at least a billion of these operations.
 
 Even with a very high constant I think it'll be far more efficient to use **O(1)** complexity operations provided by **std::unordered_map\<...\>()**. The only problem is that we need to print the output in lexicographical order of location names.
@@ -464,7 +464,6 @@ Even with a very high constant I think it'll be far more efficient to use **O(1)
 Thats no biggie as we're only dealing with at most 10,000 unique locations. We can just collect them in a **std::vector\<std::string\>()** and sort it to then use it to access elements fron the **std::unordered_map\<...\>()**.
 
 The best part is we can reserve memory for both of those data-structures, so not dynamic allocations and reallocations! we reserve sufficient memory beforehand.
-
 
 ```cpp
 #include <algorithm>
@@ -767,7 +766,6 @@ int main(int argc, char* argv[]) {
 **Result**: ~62s.
 
 It was actually kind stupid to not do this straight away 😅.
-
 
 But 🔥📊 >> 🧠🤓. let's look what's going on.
 
@@ -1139,7 +1137,6 @@ int main(int argc, char* argv[]) {
   style={{ width: "100%" }}
 ></object>
 
-
 ```sh
 Time (mean ± σ):     34.195 s ±  0.732 s    [User: 101.743 s, System: 11.998 s]
 Range (min … max):   33.147 s … 35.211 s    10 runs
@@ -1149,7 +1146,7 @@ Range (min … max):   33.147 s … 35.211 s    10 runs
 
 Since we're going for raw speed it is only fair to quote one of the fastest human beings and the flying dutchman.
 
-***That is just simply lovely!***
-    -Max Verstappen.
-  
+**_That is just simply lovely!_**
+-Max Verstappen.
+
 ### More comming soonish...

@@ -136,7 +136,7 @@ const posts = (await getCollection("blog")).sort(
     <main>
       <div class="intro">
           <h1>Hi, I'm Harsh</h1>
-          <small style="font-size: 15px;">100% Biodegradable, cruelty-free. Made in India</small>
+          <small style="font-size: 15px;">100% Biodegradable, Cruelty-Free. Made in India</small>
         <p>
           I build systems, break kernels, Implement the exact same thing in
           differnt langauges, then write about it.
@@ -157,6 +157,7 @@ const posts = (await getCollection("blog")).sort(
                 <p>{post.data.description}</p>
               </div>
               <div class="date">
+                  Last Updated,
                 <FormattedDate date={post.data.pubDate} />
               </div>
             </a>
