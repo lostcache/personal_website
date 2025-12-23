@@ -1,0 +1,207 @@
+---
+interface Props {
+  maxHeight?: string;
+}
+
+const { maxHeight = "400px" } = Astro.props;
+const id = `code-${Math.random().toString(36).substr(2, 9)}`;
+---
+
+<div class="expandable-code-wrapper">
+  <div class="code-container" style={`max-height: ${maxHeight}`} data-code-id={id}>
+    <slot />
+  </div>
+  <button class="expand-btn" data-target={id} type="button">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+      <path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/>
+    </svg>
+    View Full
+  </button>
+</div>
+
+<div class="code-modal" id={id}>
+  <div class="modal-backdrop"></div>
+  <div class="modal-content">
+    <button class="close-btn" type="button">
+      <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+      </svg>
+    </button>
+    <div class="modal-code"></div>
+  </div>
+</div>
+
+<style>
+  .expandable-code-wrapper {
+    position: relative;
+    margin: 1.5rem 0;
+  }
+
+  .code-container {
+    overflow-y: auto;
+    overflow-x: auto;
+    position: relative;
+  }
+
+  .expand-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 6px 12px;
+    background: var(--accent-color, #0066cc);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    z-index: 10;
+    transition: background 0.2s;
+  }
+
+  .expand-btn:hover {
+    background: var(--accent-hover, #0052a3);
+  }
+
+  .code-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+  }
+
+  .code-modal.active {
+    display: block;
+  }
+
+  .modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+  }
+
+  .modal-content {
+    position: relative;
+    width: 90vw;
+    max-width: 1400px;
+    height: 90vh;
+    margin: 5vh auto;
+    background: var(--modal-bg, #1e1e1e);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  }
+
+  .close-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1001;
+    color: white;
+    transition: background 0.2s;
+  }
+
+  .close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .modal-code {
+    height: 100%;
+    overflow: auto;
+    padding: 1rem;
+  }
+
+  .modal-code > div {
+    max-height: none !important;
+  }
+</style>
+
+<script>
+  function init() {
+    const expandButtons = document.querySelectorAll('.expand-btn');
+
+    expandButtons.forEach(btn => {
+      const handler = () => {
+        const targetId = btn.getAttribute('data-target');
+        if (!targetId) return;
+
+        const modal = document.getElementById(targetId);
+        const codeContainer = document.querySelector(`[data-code-id="${targetId}"]`);
+
+        if (modal && codeContainer) {
+          const modalCode = modal.querySelector('.modal-code');
+          if (modalCode) {
+            modalCode.innerHTML = '';
+            const codeClone = codeContainer.cloneNode(true) as HTMLElement;
+            codeClone.style.maxHeight = 'none';
+            codeClone.removeAttribute('data-code-id');
+            modalCode.appendChild(codeClone);
+          }
+
+          modal.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        }
+      };
+
+      btn.removeEventListener('click', handler);
+      btn.addEventListener('click', handler);
+    });
+
+    const closeButtons = document.querySelectorAll('.close-btn');
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+
+    const closeModal = (modal: Element) => {
+      modal.classList.remove('active');
+      document.body.style.overflow = '';
+    };
+
+    closeButtons.forEach(btn => {
+      const handler = () => {
+        const modal = btn.closest('.code-modal');
+        if (modal) closeModal(modal);
+      };
+      btn.removeEventListener('click', handler);
+      btn.addEventListener('click', handler);
+    });
+
+    backdrops.forEach(backdrop => {
+      const handler = () => {
+        const modal = backdrop.closest('.code-modal');
+        if (modal) closeModal(modal);
+      };
+      backdrop.removeEventListener('click', handler);
+      backdrop.addEventListener('click', handler);
+    });
+
+    const escHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        const activeModal = document.querySelector('.code-modal.active');
+        if (activeModal) closeModal(activeModal);
+      }
+    };
+
+    document.removeEventListener('keydown', escHandler);
+    document.addEventListener('keydown', escHandler);
+  }
+
+  init();
+  document.addEventListener('astro:page-load', init);
+</script>
