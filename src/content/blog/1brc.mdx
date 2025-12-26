@@ -1162,7 +1162,7 @@ Range (min … max):   41.611 s … 43.481 s    10 runs
 
 I think it's finally time to tackel **std::unordered_map\<...\>()**. **std::unordered_map** is one big linked-list with an array of pointers to the buckets that enables efficient access to an element without iterating from the begining. This type of architecture has benifits like it never has to move the elements from one memory address to another as the number of elements increase.
 
-But this leads to pointer chasing which basically shits on the cache
+But this leads to pointer chasing which is very bad for the cache
 
 Since we already know the max number of elements we need to support we can simple use a **std::vector** which are best friends with cache and preallocate memory that we need. 
 
