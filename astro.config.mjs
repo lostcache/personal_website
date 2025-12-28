@@ -3,6 +3,7 @@
 import expressiveCode from "astro-expressive-code";
 import mdx from "@astrojs/mdx";
 import sitemap from "@astrojs/sitemap";
+import tailwind from "@astrojs/tailwind";
 import { defineConfig } from "astro/config";
 
 import { remarkReadingTime } from "./remark-reading-time.mjs";
@@ -20,5 +21,6 @@ export default defineConfig({
       remarkPlugins: [remarkReadingTime],
     }),
     sitemap(),
+    tailwind(),
   ],
 });

@@ -1,7 +1,7 @@
 ---
 import BaseHead from "../components/BaseHead.astro";
-import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
+import ThemeToggle from "../components/ThemeToggle.astro";
 import { SITE_TITLE, SITE_DESCRIPTION } from "../consts";
 import { getCollection } from "astro:content";
 import FormattedDate from "../components/FormattedDate.astro";
@@ -16,155 +16,634 @@ const posts = (await getCollection("blog")).sort(
   <head>
     <BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
     <style>
-      main {
-        width: 960px;
-        max-width: calc(100% - 2em);
-        margin: auto;
-        padding: 3em 1em;
+      /* Blog content styling when loaded inline */
+      #blog-content-inner {
+        max-width: 100%;
       }
-
-      .intro {
-        margin-bottom: 3em;
+      #blog-content-inner .prose {
+        max-width: 100%;
+        width: 100%;
+        padding: 0;
+      }
+      #blog-content-inner .title {
+        margin-bottom: 1em;
+        padding: 1em 0;
         text-align: center;
       }
-      .intro h1 {
-        font-size: 3em;
-        margin-bottom: 0.2em;
+      #blog-content-inner .title h1 {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 0.5em 0;
       }
-      .intro p {
-        font-size: 1.2em;
-        color: var(--text-muted);
+      #blog-content-inner .date {
+        margin-bottom: 0.5em;
+        opacity: 0.7;
+        font-size: 0.875rem;
       }
-
-      .bento-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1.5rem;
-        margin-bottom: 3rem;
-      }
-
-      .bento-item {
-        background: var(--gray-light);
+      #blog-content-inner .hero-image img {
+        display: block;
+        margin: 0 auto 2em;
         border-radius: 12px;
-        padding: 1.5rem;
-        text-decoration: none;
-        color: var(--black);
-        transition:
-          transform 0.2s ease,
-          box-shadow 0.2s ease;
-        border: 1px solid rgba(0, 0, 0, 0.05);
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        overflow: hidden;
-      }
-
-      /* Dark mode adjustment */
-      :global([data-theme="dark"]) .bento-item {
-        background: #1a1a1a;
-        border: 1px solid #333;
-        color: #fff;
-      }
-
-      .bento-item:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-      }
-
-      .bento-item h3 {
-        margin: 0;
-        font-size: 1.4rem;
-        line-height: 1.2;
-        margin-bottom: 0.5rem;
-      }
-
-      .bento-item p {
-        margin: 0;
-        font-size: 0.95rem;
-        color: var(--gray);
-        line-height: 1.4;
-      }
-
-      .bento-item .date {
-        font-size: 0.8rem;
-        color: var(--gray);
-        margin-top: 1rem;
-        opacity: 0.8;
-      }
-
-      /* Featured Item (Part 1) spans 2 cols */
-      .featured {
-        grid-column: 1 / -1;
-        background: linear-gradient(135deg, var(--gray-light) 0%, #e0e0e0 100%);
-        min-height: 250px;
-        position: relative;
-      }
-      :global([data-theme="dark"]) .featured {
-        background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
-      }
-
-      .featured h3 {
-        font-size: 2.2rem;
-        margin-bottom: 1rem;
-      }
-
-      .featured p {
-        font-size: 1.1rem;
-        max-width: 80%;
-      }
-
-      .section-title {
-        text-align: left;
-        margin: 2rem 0 1rem;
-        font-size: 1.5rem;
-        border-bottom: 1px solid var(--gray-light);
-        padding-bottom: 0.5rem;
-      }
-
-      @media (max-width: 720px) {
-        .bento-grid {
-          grid-template-columns: 1fr;
-        }
-        .featured h3 {
-          font-size: 1.5rem;
-        }
+        max-width: 100%;
       }
     </style>
   </head>
   <body>
-    <Header />
-    <main>
-      <div class="intro">
-          <h1>Hi, I'm Harsh</h1>
-          <small style="font-size: 15px;">100% Biodegradable, Cruelty-Free. Made in India</small>
-        <p>
+    <main class="mx-auto px-4 py-8 w-full max-w-[98vw]">
+      <!-- Intro Section -->
+      <div class="text-center mb-12">
+        <h4 class="text-5xl font-bold mb-4">
+          Hi, I'm Harsh, welcome to my digital garden
+        </h4>
+        <p class="text-sm opacity-70 mb-4">
+          100% Biodegradable, Cruelty-Free. Made in India
+        </p>
+        <p class="text-lg opacity-80 max-w-3xl mx-auto">
           I build systems, break kernels, Implement the exact same thing in
           differnt langauges, then write about it.
         </p>
       </div>
 
-      <h2 class="section-title">Recent Blogs</h2>
+      <!-- 3-Column Layout: Blogs (Left) | Content Area (Center) | Links (Right) -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- LEFT: Blog List -->
+        <div class="lg:col-span-3 xl:col-span-2">
+          <div class="card bg-base-200 shadow-lg sticky top-8">
+            <div class="card-body p-5">
+              <button id="about-btn" class="btn btn-primary btn-sm w-full mb-6">
+                About
+              </button>
 
-      <div class="bento-grid">
-        {
-          posts.map((post, index) => (
-            <a
-              href={`/blog/${post.id}/`}
-              class={`bento-item ${index === 0 ? "featured" : ""}`}
+              <h2 class="text-lg font-bold mb-4 border-b border-primary pb-3">
+                📝 Blogs
+              </h2>
+
+              <div class="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+                {
+                  posts.map((post) => (
+                    <button
+                      class="blog-item-btn w-full text-left p-3 rounded-lg hover:bg-base-300 transition-all cursor-pointer border border-transparent hover:border-primary"
+                      data-blog-id={post.id}
+                      data-blog-title={post.data.title}
+                      data-blog-url={`/blog/${post.id}/`}
+                    >
+                      <h3 class="font-semibold text-sm leading-tight">
+                        {post.data.title}
+                      </h3>
+                      <p class="text-xs opacity-60 mt-1">
+                        <FormattedDate date={post.data.pubDate} />
+                      </p>
+                    </button>
+                  ))
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CENTER: Content Area (Resume by default, Blog when clicked) -->
+        <div class="lg:col-span-6 xl:col-span-8">
+          <div id="content-area">
+            <!-- Blog Content (Hidden by default) -->
+            <div
+              id="blog-content"
+              class="card bg-base-200 shadow-xl"
+              style="display: none;"
             >
-              <div>
-                <h3>{post.data.title}</h3>
-                <p>{post.data.description}</p>
+              <div class="card-body p-6">
+                <div id="blog-content-inner"></div>
               </div>
-              <div class="date">
-                  Last Updated,
-                <FormattedDate date={post.data.pubDate} />
+            </div>
+
+            <!-- Resume Content (Default) -->
+            <div id="resume-content" class="card bg-base-200 shadow-xl">
+              <div class="card-body p-6">
+                <!-- Header -->
+                <div class="flex justify-between items-start mb-6">
+                  <div>
+                    <h2 class="card-title text-2xl mb-2">Harsh Devisha</h2>
+                    <div class="text-sm opacity-70 flex flex-wrap gap-2">
+                      <a href="https://www.harshdevisha.com" class="link"
+                        >harshdevisha.com</a
+                      >
+                      <span>•</span>
+                      <span>+1-310-696-9659</span>
+                      <span>•</span>
+                      <a href="mailto:harshdevisha91@gmail.com" class="link"
+                        >harshdevisha91@gmail.com</a
+                      >
+                    </div>
+                  </div>
+
+                  <!-- Social Links -->
+                  <div class="flex items-center gap-3">
+                    <a
+                      href="https://www.linkedin.com/in/harsh-devisha/"
+                      target="_blank"
+                      class="opacity-70 hover:opacity-100 transition-opacity"
+                      title="LinkedIn"
+                    >
+                      <svg
+                        viewBox="0 0 16 16"
+                        width="24"
+                        height="24"
+                        fill="currentColor"
+                      >
+                        <path
+                          d="M0 1.146C0 .513.526 0 1.175 0h13.65C15.474 0 16 .513 16 1.146v13.708c0 .633-.526 1.146-1.175 1.146H1.175C.526 16 0 15.487 0 14.854V1.146zm4.943 12.248V6.169H2.542v7.225h2.401zm-1.2-8.212c.837 0 1.358-.554 1.358-1.248-.015-.709-.52-1.248-1.342-1.248-.822 0-1.359.54-1.359 1.248 0 .694.521 1.248 1.327 1.248h.016zm4.908 8.212V9.359c0-.216.016-.432.08-.586.173-.431.568-.878 1.232-.878.869 0 1.216.662 1.216 1.634v3.865h2.401V9.25c0-2.22-1.184-3.252-2.764-3.252-1.274 0-1.845.7-2.165 1.193v.025h-.016a5.54 5.54 0 0 1 .016-.025V6.169h-2.4c.03.678 0 7.225 0 7.225h2.4z"
+                        ></path>
+                      </svg>
+                    </a>
+                    <a
+                      href="https://github.com/lostcache"
+                      target="_blank"
+                      class="opacity-70 hover:opacity-100 transition-opacity"
+                      title="GitHub"
+                    >
+                      <svg
+                        viewBox="0 0 16 16"
+                        width="24"
+                        height="24"
+                        fill="currentColor"
+                      >
+                        <path
+                          d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+                        ></path>
+                      </svg>
+                    </a>
+                  </div>
+                </div>
+
+                <a
+                  href="/harsh_devisha_resume.pdf"
+                  download="Harsh_Devisha_Resume.pdf"
+                  class="btn btn-primary btn-sm mb-6 w-fit"
+                >
+                  Download Resume (PDF)
+                </a>
+
+                <div class="divider my-4"></div>
+
+                <!-- Education -->
+                <h3 class="text-xl font-bold mb-4">Education</h3>
+                <div class="space-y-4 mb-6">
+                  <div class="border-l-4 border-primary pl-4 py-2">
+                    <div
+                      class="flex justify-between items-baseline flex-wrap gap-2"
+                    >
+                      <h4 class="font-semibold text-base">
+                        Loyola Marymount University
+                      </h4>
+                      <span class="text-xs opacity-60">Jan 2024 - Dec 2025</span
+                      >
+                    </div>
+                    <p class="text-sm opacity-70 mt-1">
+                      MS in Computer Science • GPA: 3.9/4.0 • Los Angeles, CA
+                    </p>
+                  </div>
+                  <div class="border-l-4 border-primary pl-4 py-2">
+                    <div
+                      class="flex justify-between items-baseline flex-wrap gap-2"
+                    >
+                      <h4 class="font-semibold text-base">
+                        Pandit Deendayal Petroleum University
+                      </h4>
+                      <span class="text-xs opacity-60">Jun 2017 - Jun 2021</span
+                      >
+                    </div>
+                    <p class="text-sm opacity-70 mt-1">
+                      BTech in Electrical Engineering • Gandhinagar, GJ
+                    </p>
+                  </div>
+                </div>
+
+                <div class="divider my-4"></div>
+
+                <!-- Experience -->
+                <h3 class="text-xl font-bold mb-4">Experience</h3>
+                <div class="space-y-4 mb-6">
+                  <div
+                    class="card bg-base-100 hover:bg-base-300 transition-all"
+                  >
+                    <div class="card-body p-4">
+                      <div
+                        class="flex justify-between items-baseline flex-wrap gap-2 mb-1"
+                      >
+                        <div>
+                          <h4 class="font-semibold text-base mb-1">
+                            Graduate Research Assistant
+                          </h4>
+                          <p class="text-sm opacity-70">
+                            Kubishi | LMU • Los Angeles, CA
+                          </p>
+                        </div>
+                        <span class="text-xs opacity-60 whitespace-nowrap"
+                          >Aug 2025 - Present</span
+                        >
+                      </div>
+                      <div class="flex flex-wrap gap-2 mt-3">
+                        <span class="badge badge-primary badge-sm"
+                          >Pure-pursuit problem</span
+                        >
+                        <span class="badge badge-primary badge-sm"
+                          >Competitive ratio</span
+                        >
+                        <span class="badge badge-primary badge-sm">Python</span>
+                        <span class="badge badge-primary badge-sm"
+                          >Mathematica</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    class="card bg-base-100 hover:bg-base-300 transition-all"
+                  >
+                    <div class="card-body p-4">
+                      <div
+                        class="flex justify-between items-baseline flex-wrap gap-2 mb-1"
+                      >
+                        <div>
+                          <h4 class="font-semibold text-base mb-1">
+                            Software Engineer
+                          </h4>
+                          <p class="text-sm opacity-70">
+                            SetFindr • Los Angeles, CA
+                          </p>
+                        </div>
+                        <span class="text-xs opacity-60 whitespace-nowrap"
+                          >Dec 2024 - May 2025</span
+                        >
+                      </div>
+                      <div class="flex flex-wrap gap-2 mt-3">
+                        <span class="badge badge-primary badge-sm"
+                          >JWT Auth</span
+                        >
+                        <span class="badge badge-primary badge-sm">FastAPI</span
+                        >
+                        <span class="badge badge-primary badge-sm">Node.js</span
+                        >
+                        <span class="badge badge-primary badge-sm"
+                          >Vector Search</span
+                        >
+                        <span class="badge badge-primary badge-sm">Qdrant</span>
+                        <span class="badge badge-primary badge-sm"
+                          >Google Cloud</span
+                        >
+                        <span class="badge badge-primary badge-sm"
+                          >OpenAI API</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    class="card bg-base-100 hover:bg-base-300 transition-all"
+                  >
+                    <div class="card-body p-4">
+                      <div
+                        class="flex justify-between items-baseline flex-wrap gap-2 mb-1"
+                      >
+                        <div>
+                          <h4 class="font-semibold text-base mb-1">
+                            Data Specialist
+                          </h4>
+                          <p class="text-sm opacity-70">
+                            LMU Career and Professional Development • Los
+                            Angeles, CA
+                          </p>
+                        </div>
+                        <span class="text-xs opacity-60 whitespace-nowrap"
+                          >Aug 2024 - May 2025</span
+                        >
+                      </div>
+                      <div class="flex flex-wrap gap-2 mt-3">
+                        <span class="badge badge-primary badge-sm"
+                          >ETL Pipelines</span
+                        >
+                        <span class="badge badge-primary badge-sm"
+                          >Data Analysis</span
+                        >
+                        <span class="badge badge-primary badge-sm"
+                          >Engagement Patterns</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    class="card bg-base-100 hover:bg-base-300 transition-all"
+                  >
+                    <div class="card-body p-4">
+                      <div
+                        class="flex justify-between items-baseline flex-wrap gap-2 mb-1"
+                      >
+                        <div>
+                          <h4 class="font-semibold text-base mb-1">
+                            Software Engineer - I
+                          </h4>
+                          <p class="text-sm opacity-70">
+                            Nexuslink Services • Ahmedabad, GJ
+                          </p>
+                        </div>
+                        <span class="text-xs opacity-60 whitespace-nowrap"
+                          >Dec 2021 - Dec 2023</span
+                        >
+                      </div>
+                      <div class="flex flex-wrap gap-2 mt-3">
+                        <span class="badge badge-primary badge-sm"
+                          >Puppeteer</span
+                        >
+                        <span class="badge badge-primary badge-sm"
+                          >Document Generation</span
+                        >
+                        <span class="badge badge-primary badge-sm"
+                          >API Client</span
+                        >
+                        <span class="badge badge-primary badge-sm">JWT</span>
+                        <span class="badge badge-primary badge-sm"
+                          >Session Management</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="divider my-4"></div>
+
+                <!-- Projects -->
+                <h3 class="text-xl font-bold mb-4">Projects</h3>
+                <div class="space-y-4 mb-6">
+                  <div
+                    class="card bg-base-100 hover:bg-base-300 transition-all"
+                  >
+                    <div class="card-body p-4">
+                      <div
+                        class="flex justify-between items-baseline flex-wrap gap-2"
+                      >
+                        <h4 class="font-semibold text-base">
+                          Zue (Distributed Log)
+                        </h4>
+                        <span class="text-xs opacity-60">Zig</span>
+                      </div>
+                      <div class="flex flex-wrap gap-2 mt-3">
+                        <span class="badge badge-primary badge-sm"
+                          >Raft Consensus</span
+                        >
+                        <span class="badge badge-primary badge-sm"
+                          >Distributed Storage</span
+                        >
+                        <span class="badge badge-primary badge-sm"
+                          >Quorum Replication</span
+                        >
+                        <span class="badge badge-primary badge-sm"
+                          >Log-structured</span
+                        >
+                        <span class="badge badge-primary badge-sm"
+                          >Event-loop</span
+                        >
+                        <span class="badge badge-primary badge-sm"
+                          >Binary Protocol</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    class="card bg-base-100 hover:bg-base-300 transition-all"
+                  >
+                    <div class="card-body p-4">
+                      <div
+                        class="flex justify-between items-baseline flex-wrap gap-2"
+                      >
+                        <h4 class="font-semibold text-base">
+                          Sparrow Language Interpreter
+                        </h4>
+                        <span class="text-xs opacity-60">Java</span>
+                      </div>
+                      <div class="flex flex-wrap gap-2 mt-3">
+                        <span class="badge badge-primary badge-sm">Lexer</span>
+                        <span class="badge badge-primary badge-sm">Parser</span>
+                        <span class="badge badge-primary badge-sm">AST</span>
+                        <span class="badge badge-primary badge-sm"
+                          >Typechecking</span
+                        >
+                        <span class="badge badge-primary badge-sm"
+                          >Visitor Pattern</span
+                        >
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="divider my-4"></div>
+
+                <!-- Technical Skills -->
+                <h3 class="text-xl font-bold mb-4">Technical Skills</h3>
+                <div class="flex flex-wrap gap-2">
+                  <span class="badge badge-primary badge-sm">C++</span>
+                  <span class="badge badge-primary badge-sm">Python</span>
+                  <span class="badge badge-primary badge-sm">Rust</span>
+                  <span class="badge badge-primary badge-sm">Java</span>
+                  <span class="badge badge-primary badge-sm">TypeScript</span>
+                  <span class="badge badge-primary badge-sm">Go</span>
+                  <span class="badge badge-primary badge-sm">OCaml</span>
+                  <span class="badge badge-primary badge-sm">Node.js</span>
+                  <span class="badge badge-primary badge-sm">FastAPI</span>
+                  <span class="badge badge-primary badge-sm">PostgreSQL</span>
+                  <span class="badge badge-primary badge-sm">MongoDB</span>
+                  <span class="badge badge-primary badge-sm">Redis</span>
+                  <span class="badge badge-primary badge-sm">AWS</span>
+                  <span class="badge badge-primary badge-sm">Google Cloud</span>
+                </div>
               </div>
-            </a>
-          ))
-        }
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Digital Garden / Resources -->
+        <div class="lg:col-span-3 xl:col-span-2">
+          <div class="card bg-base-200 shadow-lg sticky top-8">
+            <div class="card-body p-5">
+              <h2 class="text-lg font-bold mb-4 border-b border-primary pb-3">
+                Stuff I'm into
+              </h2>
+
+              <div class="space-y-5 max-h-[600px] overflow-y-auto pr-2">
+                <div>
+                  <h3 class="font-semibold text-sm mb-2 opacity-80">
+                    Resources I Love
+                  </h3>
+                  <ul class="space-y-2 text-sm">
+                    <li>
+                      <a
+                        href="https://fasterthanli.me/"
+                        target="_blank"
+                        class="link link-hover">fasterthanlime</a
+                      >
+                    </li>
+                    <li>
+                      <a
+                        href="https://jvns.ca/"
+                        target="_blank"
+                        class="link link-hover">Julia Evans</a
+                      >
+                    </li>
+                    <li>
+                      <a
+                        href="https://lwn.net/"
+                        target="_blank"
+                        class="link link-hover">LWN.net</a
+                      >
+                    </li>
+                    <li>
+                      <a
+                        href="https://www.brendangregg.com/"
+                        target="_blank"
+                        class="link link-hover">Brendan Gregg</a
+                      >
+                    </li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 class="font-semibold text-sm mb-2 opacity-80">
+                    Learning
+                  </h3>
+                  <ul class="space-y-2 text-sm">
+                    <li>
+                      <a
+                        href="https://craftinginterpreters.com/"
+                        target="_blank"
+                        class="link link-hover">Crafting Interpreters</a
+                      >
+                    </li>
+                    <li>
+                      <a
+                        href="https://csprimer.com/"
+                        target="_blank"
+                        class="link link-hover">CS Primer</a
+                      >
+                    </li>
+                    <li>
+                      <a
+                        href="https://github.com/codecrafters-io"
+                        target="_blank"
+                        class="link link-hover">CodeCrafters</a
+                      >
+                    </li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h3 class="font-semibold text-sm mb-2 opacity-80">
+                    Cool Projects
+                  </h3>
+                  <ul class="space-y-2 text-sm">
+                    <li>
+                      <a
+                        href="https://github.com/zig-lang/zig"
+                        target="_blank"
+                        class="link link-hover">Zig Language</a
+                      >
+                    </li>
+                    <li>
+                      <a
+                        href="https://github.com/tigerbeetle/tigerbeetle"
+                        target="_blank"
+                        class="link link-hover">TigerBeetle</a
+                      >
+                    </li>
+                    <li>
+                      <a
+                        href="https://github.com/lostcache/zue"
+                        target="_blank"
+                        class="link link-hover">My Zue Project</a
+                      >
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
+
+    <script>
+      // Handle blog item clicks
+      const blogBtns = document.querySelectorAll(".blog-item-btn");
+      const resumeContent = document.getElementById("resume-content");
+      const blogContent = document.getElementById("blog-content");
+      const blogContentInner = document.getElementById("blog-content-inner");
+      const aboutBtn = document.getElementById("about-btn");
+
+      blogBtns.forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          const blogUrl = btn.getAttribute("data-blog-url");
+          const blogTitle = btn.getAttribute("data-blog-title");
+
+          try {
+            // Fetch the blog page
+            const response = await fetch(blogUrl);
+            const html = await response.text();
+
+            // Parse the HTML
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, "text/html");
+
+            // Extract the main article content
+            const article = doc.querySelector("article");
+
+            if (article && blogContentInner) {
+              // Copy the article content
+              blogContentInner.innerHTML = article.innerHTML;
+
+              // Hide resume, show blog
+              if (resumeContent) resumeContent.style.display = "none";
+              if (blogContent) blogContent.style.display = "block";
+
+              // Highlight active blog
+              blogBtns.forEach((b) =>
+                b.classList.remove("border-primary", "bg-base-300")
+              );
+              btn.classList.add("border-primary", "bg-base-300");
+
+              // Scroll to top of content area
+              document
+                .getElementById("content-area")
+                ?.scrollIntoView({ behavior: "smooth" });
+            }
+          } catch (error) {
+            console.error("Error loading blog:", error);
+            // Fallback to navigation
+            window.location.href = blogUrl;
+          }
+        });
+      });
+
+      // Handle about button click to show resume
+      aboutBtn?.addEventListener("click", () => {
+        if (resumeContent) resumeContent.style.display = "block";
+        if (blogContent) blogContent.style.display = "none";
+
+        // Clear blog selection highlighting
+        blogBtns.forEach((b) =>
+          b.classList.remove("border-primary", "bg-base-300")
+        );
+
+        // Scroll to top of content area
+        document
+          .getElementById("content-area")
+          ?.scrollIntoView({ behavior: "smooth" });
+      });
+    </script>
+
+    <!-- Theme Toggle - Fixed Top Right -->
+    <div class="fixed top-8 right-8 z-50">
+      <ThemeToggle />
+    </div>
+
     <Footer />
   </body>
 </html>
