@@ -17,10 +17,37 @@ const posts = (await getCollection("blog")).sort(
     <BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
     <style>
       main {
-        width: 960px;
-        max-width: calc(100% - 2em);
-        margin: auto;
-        padding: 3em 1em;
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        padding: 2em 0;
+        height: calc(100vh - 120px);
+        overflow: hidden;
+      }
+
+      .main-layout {
+        display: grid;
+        grid-template-columns: 25% 75%;
+        gap: 0;
+        max-width: 100%;
+        height: 100%;
+      }
+
+      .left-column {
+        order: 1;
+        padding-left: 1em;
+        padding-right: 1.5em;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow: hidden;
+      }
+
+      .right-column {
+        order: 2;
+        padding-right: 2em;
+        max-width: 1000px;
+        overflow-y: auto;
       }
 
       .intro {
@@ -36,11 +63,75 @@ const posts = (await getCollection("blog")).sort(
         color: var(--text-muted);
       }
 
+      .resume-button {
+        display: inline-block;
+        margin-top: 1.5rem;
+        padding: 0.55rem 1.0rem;
+        background: #000000;
+        color: #ffffff;
+        text-decoration: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        border: 2px solid #000000;
+      }
+
+      :global([data-theme="dark"]) .resume-button {
+        background: #ffffff;
+        color: #000000;
+        border-color: #ffffff;
+      }
+
+      .resume-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+
+      :global([data-theme="dark"]) .resume-button:hover {
+        box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
+      }
+
       .bento-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1.5rem;
-        margin-bottom: 3rem;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        overflow-y: auto;
+        overflow-x: hidden;
+        flex: 1;
+        padding-bottom: 1rem;
+        min-height: 0;
+        padding-right: 0.5rem;
+      }
+
+      .bento-grid::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .bento-grid::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 4px;
+      }
+
+      .bento-grid::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 4px;
+      }
+
+      .bento-grid::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 0, 0, 0.5);
+      }
+
+      :global([data-theme="dark"]) .bento-grid::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      :global([data-theme="dark"]) .bento-grid::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      :global([data-theme="dark"]) .bento-grid::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.5);
       }
 
       .bento-item {
@@ -56,7 +147,8 @@ const posts = (await getCollection("blog")).sort(
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        overflow: hidden;
+        overflow: visible;
+        min-height: fit-content;
       }
 
       /* Dark mode adjustment */
@@ -92,41 +184,113 @@ const posts = (await getCollection("blog")).sort(
         opacity: 0.8;
       }
 
-      /* Featured Item (Part 1) spans 2 cols */
-      .featured {
-        grid-column: 1 / -1;
-        background: linear-gradient(135deg, var(--gray-light) 0%, #e0e0e0 100%);
-        min-height: 250px;
-        position: relative;
-      }
-      :global([data-theme="dark"]) .featured {
-        background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
-      }
-
-      .featured h3 {
-        font-size: 2.2rem;
-        margin-bottom: 1rem;
-      }
-
-      .featured p {
-        font-size: 1.1rem;
-        max-width: 80%;
-      }
 
       .section-title {
         text-align: left;
-        margin: 2rem 0 1rem;
+        margin: 0 0 1rem 0;
         font-size: 1.5rem;
         border-bottom: 1px solid var(--gray-light);
         padding-bottom: 0.5rem;
+        flex-shrink: 0;
+      }
+
+      .experience-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 3rem;
+      }
+
+      .experience-card {
+        background: var(--gray-light);
+        border-radius: 8px;
+        padding: 1rem;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      :global([data-theme="dark"]) .experience-card {
+        background: #1a1a1a;
+        border: 1px solid #333;
+      }
+
+      .experience-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      .experience-header {
+        margin-bottom: 0.75rem;
+      }
+
+      .experience-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0 0 0.25rem 0;
+        color: var(--black);
+      }
+
+      :global([data-theme="dark"]) .experience-title {
+        color: #ffffff;
+      }
+
+      .experience-company {
+        font-size: 0.85rem;
+        color: var(--gray);
+        margin: 0 0 0.2rem 0;
+      }
+
+      .experience-date {
+        font-size: 0.75rem;
+        color: var(--gray);
+        opacity: 0.7;
+      }
+
+      .tech-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: 0.75rem;
+      }
+
+      .tech-tag {
+        background: rgba(0, 0, 0, 0.08);
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 500;
+        color: var(--black);
+      }
+
+      :global([data-theme="dark"]) .tech-tag {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
       }
 
       @media (max-width: 720px) {
-        .bento-grid {
-          grid-template-columns: 1fr;
+        main {
+          height: auto;
+          overflow: visible;
         }
-        .featured h3 {
-          font-size: 1.5rem;
+        .main-layout {
+          grid-template-columns: 1fr;
+          height: auto;
+        }
+        .left-column {
+          order: 2;
+          height: auto;
+          overflow: visible;
+        }
+        .right-column {
+          order: 1;
+          overflow: visible;
+        }
+        .bento-grid {
+          overflow: visible;
+          flex: none;
+        }
+        .experience-grid {
+          grid-template-columns: 1fr;
         }
       }
     </style>
@@ -134,35 +298,112 @@ const posts = (await getCollection("blog")).sort(
   <body>
     <Header />
     <main>
-      <div class="intro">
-          <h1>Hi, I'm Harsh</h1>
-          <small style="font-size: 15px;">100% Biodegradable, Cruelty-Free. Made in India</small>
-        <p>
-          I build systems, break kernels, Implement the exact same thing in
-          differnt langauges, then write about it.
-        </p>
-      </div>
+      <div class="main-layout">
+        <div class="left-column">
+          <h2 class="section-title">Recent Blogs</h2>
+          <div class="bento-grid">
+            {
+              posts.map((post) => (
+                <a
+                  href={`/blog/${post.id}/`}
+                  class="bento-item"
+                >
+                  <div>
+                    <h3>{post.data.title}</h3>
+                    <p>{post.data.description}</p>
+                  </div>
+                  <div class="date">
+                      Last Updated,
+                    <FormattedDate date={post.data.pubDate} />
+                  </div>
+                </a>
+              ))
+            }
+          </div>
+        </div>
 
-      <h2 class="section-title">Recent Blogs</h2>
+        <div class="right-column">
+          <div class="intro">
+              <h2 style="margin-bottom: 0px">Hi, I'm Harsh</h2>
+              <tiny style="font-size: 15px; margin-top: 0px">100% Biodegradable, Cruelty-Free. Made in India</tiny>
+              <p style="margin-top: 1rem; font-size: 1.2rem; line-height: 1.6;">
+            Recent <strong>CS grad from LMU</strong> (3.90 GPA) based in <strong>Los Angeles, CA</strong>. <strong>3+ years</strong> as a software engineer building <strong>full-stack web applications</strong>. My real passion is <strong>math, systems & performance engineering</strong>—I build <strong>distributed systems</strong>, break kernels, implement the same thing in different languages, and write about the journey.
+            </p>
+          </div>
 
-      <div class="bento-grid">
-        {
-          posts.map((post, index) => (
-            <a
-              href={`/blog/${post.id}/`}
-              class={`bento-item ${index === 0 ? "featured" : ""}`}
-            >
-              <div>
-                <h3>{post.data.title}</h3>
-                <p>{post.data.description}</p>
-              </div>
-              <div class="date">
-                  Last Updated,
-                <FormattedDate date={post.data.pubDate} />
-              </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2 class="section-title" style="margin: 0;">Experience</h2>
+            <a href="/harsh_devisha_resume.pdf" download="Harsh_Devisha_Resume.pdf" class="resume-button" style="margin: 0;">
+              Download Resume
             </a>
-          ))
-        }
+          </div>
+
+          <div class="experience-grid">
+            <div class="experience-card">
+              <div class="experience-header">
+                <h3 class="experience-title">Graduate Research Assistant</h3>
+                <p class="experience-company">Kubishi | LMU Seaver School of Science and Engineering</p>
+                <p class="experience-date">August 2025 - Present</p>
+              </div>
+              <div class="tech-tags">
+                <span class="tech-tag">Python</span>
+                <span class="tech-tag">Mathematica</span>
+                <span class="tech-tag">Discrete Math</span>
+                <span class="tech-tag">Decentralized Algorithms</span>
+                <span class="tech-tag">Algorithm Analysis</span>
+              </div>
+            </div>
+
+            <div class="experience-card">
+              <div class="experience-header">
+                <h3 class="experience-title">Founding Engineer</h3>
+                <p class="experience-company">SetFindr</p>
+                <p class="experience-date">December 2024 - May 2025</p>
+              </div>
+              <div class="tech-tags">
+                <span class="tech-tag">Python</span>
+                <span class="tech-tag">FastAPI</span>
+                <span class="tech-tag">Node.js</span>
+                <span class="tech-tag">JWT</span>
+                <span class="tech-tag">Qdrant</span>
+                <span class="tech-tag">Google Maps API</span>
+                <span class="tech-tag">OAuth2</span>
+                <span class="tech-tag">OpenAI API</span>
+                <span class="tech-tag">AWS (EC2, S3)</span>
+                <span class="tech-tag">MongoDB</span>
+              </div>
+            </div>
+
+            <div class="experience-card">
+              <div class="experience-header">
+                <h3 class="experience-title">Data Specialist</h3>
+                <p class="experience-company">LMU Career and Professional Development Department</p>
+                <p class="experience-date">August 2024 - May 2025</p>
+              </div>
+              <div class="tech-tags">
+                <span class="tech-tag">ETL Pipelines</span>
+                <span class="tech-tag">Data Analysis</span>
+                <span class="tech-tag">Python</span>
+                <span class="tech-tag">SQL</span>
+              </div>
+            </div>
+
+            <div class="experience-card">
+              <div class="experience-header">
+                <h3 class="experience-title">Junior Software Engineer</h3>
+                <p class="experience-company">Nexuslink Services</p>
+                <p class="experience-date">December 2021 - December 2023</p>
+              </div>
+              <div class="tech-tags">
+                <span class="tech-tag">JWT Session Management</span>
+                <span class="tech-tag">REST APIs</span>
+                <span class="tech-tag">React-Redux</span>
+                <span class="tech-tag">ExpressJS</span>
+                <span class="tech-tag">MongoDB</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
     <Footer />

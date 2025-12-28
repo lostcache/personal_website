@@ -4,7 +4,7 @@ description: "My attempt at the legendary 1🐝🏎️ challenge. (No RAM were h
 pubDate: "Last Updated, Dec 23 2025"
 ---
 
-import ExpandableCode from '../../components/ExpandableCode.astro';
+import ExpandableCode from "../../components/ExpandableCode.astro";
 
 ### The Challenge 👉 [1🐝🏎️](https://github.com/gunnarmorling/1brc)
 
@@ -444,6 +444,7 @@ int main(int argc, char* argv[]) {
     return EXIT_SUCCESS;
 }
 ```
+
 </ExpandableCode >
 
 _Phew..._
@@ -473,7 +474,6 @@ Even with a very high constant I think it'll be far more efficient to use **O(1)
 Thats no biggie as we're only dealing with at most 10,000 unique locations. We can just collect them in a **std::vector\<std::string\>()** and sort it to then use it to access elements fron the **std::unordered_map\<...\>()**.
 
 The best part is we can reserve memory for both of those data-structures, so not dynamic allocations and reallocations! we reserve sufficient memory beforehand.
-
 
 <ExpandableCode maxHeight="200px">
 
@@ -1158,13 +1158,13 @@ Time (mean ± σ):     42.432 s ±  0.521 s    [User: 140.723 s, System: 14.162 
 Range (min … max):   41.611 s … 43.481 s    10 runs
 ```
 
-**mmap** is a game changer without any exageration. Not only we get rid of the overhead because of reading from streams. We no longer have to allocate 512MB buffers to read from file. We directly use the mapped file and the code is sooo much simpler to read and understand! 
+**mmap** is a game changer without any exageration. Not only we get rid of the overhead because of reading from streams. We no longer have to allocate 512MB buffers to read from file. We directly use the mapped file and the code is sooo much simpler to read and understand!
 
 I think it's finally time to tackel **std::unordered_map\<...\>()**. **std::unordered_map** is one big linked-list with an array of pointers to the buckets that enables efficient access to an element without iterating from the begining. This type of architecture has benifits like it never has to move the elements from one memory address to another as the number of elements increase.
 
 But this leads to pointer chasing which is very bad for the cache
 
-Since we already know the max number of elements we need to support we can simple use a **std::vector** which are best friends with cache and preallocate memory that we need. 
+Since we already know the max number of elements we need to support we can simple use a **std::vector** which are best friends with cache and preallocate memory that we need.
 
 For this iteration let's focus on data-oriented design principles and make the data-structures as cache friendly as possible.
 
@@ -1535,6 +1535,7 @@ Range (min … max):   34.646 s … 36.355 s    10 runs
 ```
 
 #### Fast Map
+
 <object
   type="image/svg+xml"
   data="/sol_fast_map.svg"
