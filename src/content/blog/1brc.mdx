@@ -1,7 +1,7 @@
 ---
 title: "The 1🐝🏎️ Challenge"
 description: "My attempt at the legendary 1🐝🏎️ challenge. (No RAM were harmed in the making of this blog post. CPU? Maybe.)"
-pubDate: "Last Updated, Dec 23 2025"
+pubDate: "Last Updated, Dec 29 2025"
 ---
 
 import ExpandableCode from "../../components/ExpandableCode.astro";
@@ -14,13 +14,11 @@ All my life (read: since I was `{current_age_dec_2026 - 2}` years old), I've bee
 
 The **1 Billion Row Challenge** (1BRC) was the perfect excuse to commit unholy levels of optimization without crashing production.
 
-So, here we go.
-
 ### Attempt 1: The "It Works" Approach
 
-I’ve learned the hard way like ... _really_ _really_ hard way to start simple.
+I’ve learned the hard way ... _really_ hard way to start simple.
 
-For Attempt 1, I kept it dead simple. Zero optimization. Just me, raw C++, and a desire to understand the problem components. The best way to do that? Implement the "dumb" version.
+For Attempt 1, I kept it dead simple. Zero optimization. Just me, raw C++, and a desire to understand the problem components. The best way for me to do that is just code out a working solution.
 
 **Result:** It runs in **~513.62**.
 
@@ -126,7 +124,7 @@ int main(int argc, char* argv[]) {
 
 ---
 
-The 2024 version of me would probably just throw standard optimizations at this and hope for the best. But we're doing science here. I want to know exactly _why_ it's taking so long and where the bottleneck lives so we can target our efforts.
+The 2024 version of me would probably just throw standard optimizations at this and hope for the best. But we're doing science here. I want to know exactly _why_ it's taking so long and where the bottleneck lies as 2026 version of me prefers targeted efforts.
 
 Time for a Flamegraph.
 
@@ -160,7 +158,7 @@ the graph is interactive, feel free to poke around.
   style={{ width: "100%" }}
 ></object>
 
-The biggest compoenets of runtime are **parseLine()**, **libc.so** and **std::map\<...\>::operator[]** which is what i expected as the code does a lotta parsing, memory allocation/freeing and map operations (a Billion times).
+The biggest compoenets of runtime are **parseLine()**, **libc.so** and **std::map\<...\>::operator[]** which is what i expected as the code does a lot of parsing, memory allocation/freeing and map operations (a Billion times).
 
 A simple observation is that the process is easily parallelisable map reduce style. this should naturally reduce the runtime and better utilize the resources.
 
@@ -471,7 +469,7 @@ And the real culprit **O(log n)** complexity inserts and lookups don't help eith
 
 Even with a very high constant I think it'll be far more efficient to use **O(1)** complexity operations provided by **std::unordered_map\<...\>()**. The only problem is that we need to print the output in lexicographical order of location names.
 
-Thats no biggie as we're only dealing with at most 10,000 unique locations. We can just collect them in a **std::vector\<std::string\>()** and sort it to then use it to access elements fron the **std::unordered_map\<...\>()**.
+Thats no biggie as we're only dealing with at most 10,000 unique locations. We can just collect them in a **std::vector\<std::string\>()** and sort it to then use it to access elements from the **std::unordered_map\<...\>()**.
 
 The best part is we can reserve memory for both of those data-structures, so not dynamic allocations and reallocations! we reserve sufficient memory beforehand.
 
@@ -1181,7 +1179,6 @@ For this iteration let's focus on data-oriented design principles and make the d
 #include <filesystem>
 #include <iostream>
 #include <limits>
-#include <numeric>
 #include <string>
 #include <string_view>
 #include <sys/fcntl.h>
@@ -1195,13 +1192,22 @@ constexpr size_t NUM_THREADS = 8;
 
 class FastMap {
   private:
-    std::vector<int32_t> min_vec;
-    std::vector<int32_t> max_vec;
-    std::vector<size_t> freq_vec;
-    std::vector<int64_t> sum_vec;
-    std::vector<std::string> location_vec;
-    size_t capacity;
-    size_t mask;
+    struct LocationEntry_ {
+        int32_t min;
+        int32_t max;
+        size_t freq;
+        int64_t sum;
+        std::string location;
+        LocationEntry_() {
+            min = std::numeric_limits<int32_t>::max();
+            max = std::numeric_limits<int32_t>::min();
+            freq = 0;
+            sum = 0;
+        }
+    };
+    std::vector<LocationEntry_> data;
+    size_t capacity_;
+    size_t mask_;
 
     size_t fast_hash(std::string_view sv) {
         size_t hash = 14695981039346656037ULL;
@@ -1212,116 +1218,86 @@ class FastMap {
         return hash;
     }
 
-    std::string_view getLocation(size_t idx) const { return this->location_vec[idx]; }
-
-    int32_t getMin(size_t idx) const { return this->min_vec[idx]; }
-
-    int32_t getMax(size_t idx) const { return this->max_vec[idx]; }
-
-    int64_t getSum(size_t idx) const { return this->sum_vec[idx]; }
-
-    size_t getFreq(size_t idx) const { return this->freq_vec[idx]; }
-
-    size_t getIdx(std::string_view location) {
-        size_t hash = fast_hash(location);
-        size_t idx = hash & mask;
+    size_t getIdx(std::string_view queryLocation) {
+        size_t hash = fast_hash(queryLocation);
+        size_t idx = hash & mask_;
         while (true) {
-            const auto& locationEntry = this->location_vec[idx];
-            if (locationEntry.size() <= 0 || locationEntry == location) {
+            const auto& location = this->data[idx].location;
+            if (location.size() <= 0 || location == queryLocation) {
                 return idx;
             }
-            idx = (idx + 1) & mask;
+            idx = (idx + 1) & mask_;
         }
-    }
-
-    void updateLocationEntry(size_t idx, std::string_view location) {
-        const auto& locationEntry = this->location_vec[idx];
-        if (locationEntry.size() <= 0) {
-            this->location_vec[idx] = std::string(location);
-        }
-    }
-
-    void updateMin(size_t idx, int32_t temperature) {
-        this->min_vec[idx] = std::min(this->min_vec[idx], temperature);
-    }
-
-    void updateMax(size_t idx, int32_t temperature) {
-        this->max_vec[idx] = std::max(this->max_vec[idx], temperature);
-    }
-
-    void updateSum(size_t idx, int64_t value) { this->sum_vec[idx] += value; }
-
-    void updateFreq(size_t idx) { this->freq_vec[idx]++; }
-
-    void updateFreq(size_t idx, size_t value) { this->freq_vec[idx] += value; }
-
-    std::vector<size_t> sortKeyIndices() const {
-        std::vector<size_t> indices(this->size());
-        std::iota(indices.begin(), indices.end(), 0);
-
-        std::sort(indices.begin(), indices.end(), [&](const auto& a, const auto& b) {
-            return this->location_vec[a] < this->location_vec[b];
-        });
-
-        return indices;
     }
 
     double roundTowardsINF(double value) const { return std::round(value * 10.0) / 10.0; }
 
+    bool sortInplace() {
+        std::sort(this->data.begin(), this->data.end(),
+                  [](const LocationEntry_& a, const LocationEntry_& b) {
+                      return a.location < b.location;
+                  });
+        return true;
+    }
+
   public:
-    FastMap(size_t initCap = 1 << 14) : capacity(initCap), mask(initCap - 1) {
-        min_vec.resize(initCap, std::numeric_limits<int32_t>::max());
-        max_vec.resize(initCap, std::numeric_limits<int32_t>::min());
-        freq_vec.resize(initCap, 0);
-        sum_vec.resize(initCap, 0);
-        location_vec.resize(initCap, "");
+    FastMap(size_t initCap = 1 << 14) : capacity_(initCap), mask_(initCap - 1) {
+        this->data.resize(initCap, LocationEntry_());
     }
 
-    size_t size() const { return this->capacity; }
+    size_t size() const { return this->capacity_; }
 
-    void updateRunning(std::string_view location, int32_t temperature) {
+    bool update(std::string_view location, int32_t temperature) {
         size_t idx = this->getIdx(location);
-        this->updateLocationEntry(idx, location);
-        this->updateMin(idx, temperature);
-        this->updateMax(idx, temperature);
-        this->updateFreq(idx);
-        this->updateSum(idx, temperature);
+
+        if (this->data[idx].location.size() <= 0) {
+            this->data[idx].location = std::string(location);
+        }
+        this->data[idx].freq += 1;
+        this->data[idx].sum += temperature;
+        this->data[idx].min = std::min(this->data[idx].min, temperature);
+        this->data[idx].max = std::max(this->data[idx].max, temperature);
+        return true;
     }
 
-    void updateBatch(const FastMap& other) {
-        for (size_t otherIdx = 0; otherIdx < other.size(); ++otherIdx) {
-            const auto& otherLocation = other.getLocation(otherIdx);
+    bool update(const FastMap& other) {
+        for (int i = 0; i < other.size(); ++i) {
+            const auto& otherLocation = other.data[i].location;
+
             if (otherLocation.size() <= 0) continue;
+
             size_t thisIdx = this->getIdx(otherLocation);
 
-            this->updateLocationEntry(thisIdx, otherLocation);
-            this->updateMin(thisIdx, other.getMin(otherIdx));
-            this->updateMax(thisIdx, other.getMax(otherIdx));
-            this->updateFreq(thisIdx, other.getFreq(otherIdx));
-            this->updateSum(thisIdx, other.getSum(otherIdx));
+            if (this->data[thisIdx].location.size() <= 0) {
+                this->data[thisIdx].location = otherLocation;
+            }
+            this->data[thisIdx].freq += other.data[i].freq;
+            this->data[thisIdx].sum += other.data[i].sum;
+            this->data[thisIdx].min = std::min(this->data[thisIdx].min, other.data[i].min);
+            this->data[thisIdx].max = std::max(this->data[thisIdx].max, other.data[i].max);
         }
+        return true;
     }
 
-    void printSorted() const {
-        std::vector<size_t> sortedKeyIndices = this->sortKeyIndices();
+    void printSorted() {
+        this->sortInplace();
 
         std::string outBuffer;
         outBuffer.reserve(2 * 1024 * 1024);
 
-        for (auto idx : sortedKeyIndices) {
-            if (outBuffer.size() > 1) outBuffer += ", ";
-
-            const auto& location = this->getLocation(idx);
+        for (const auto& locEntry : this->data) {
+            const auto& location = locEntry.location;
 
             if (location.size() <= 0) continue;
+
+            if (outBuffer.size() > 1) outBuffer += ", ";
 
             outBuffer += location;
             outBuffer += "=";
 
-            double min_val = this->getMin(idx) / 10.0;
-            double max_val = this->getMax(idx) / 10.0;
-            double avg =
-                roundTowardsINF(this->getSum(idx) / static_cast<double>(this->getFreq(idx) * 10));
+            double min_val = locEntry.min / 10.0;
+            double max_val = locEntry.max / 10.0;
+            double avg = roundTowardsINF(locEntry.sum / static_cast<double>(locEntry.freq * 10));
 
             size_t pos = outBuffer.size();
             outBuffer.resize(pos + 32);
@@ -1445,8 +1421,7 @@ void processLinesInCurrBatch(size_t startPos, size_t batchEnd, MMAPFile f, FastM
 
         auto result = parseLine(line);
         auto [location, temperature] = result;
-        m.updateRunning(location, temperature);
-        assert(m.size() > 0);
+        m.update(location, temperature);
 
         pos = newlinePos + 1;
     }
@@ -1469,7 +1444,7 @@ void accumulateBatch(size_t threadIndex, size_t startPos, size_t batchSizeBytes,
 
 void accumulateThreadResults(const std::vector<FastMap>& maps, FastMap& finalMap) {
     for (const auto& m : maps) {
-        finalMap.updateBatch(m);
+        finalMap.update(m);
     }
 }
 
@@ -1525,13 +1500,14 @@ int main(int argc, char* argv[]) {
 
     return EXIT_SUCCESS;
 }
+
 ```
 
 </ExpandableCode>
 
 ```sh
-Time (mean ± σ):     35.425 s ±  0.435 s    [User: 106.103 s, System: 12.649 s]
-Range (min … max):   34.646 s … 36.355 s    10 runs
+Time (mean ± σ):     32.159 s ±  0.117 s    [User: 70.174 s, System: 12.352 s]
+Range (min … max):   32.056 s … 32.436 s    10 runs
 ```
 
 #### Fast Map
