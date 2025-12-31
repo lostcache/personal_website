@@ -1156,13 +1156,13 @@ Time (mean ± σ):     42.432 s ±  0.521 s    [User: 140.723 s, System: 14.162 
 Range (min … max):   41.611 s … 43.481 s    10 runs
 ```
 
-**mmap** is a game changer without any exageration. Not only we get rid of the overhead because of reading from streams. We no longer have to allocate 512MB buffers to read from file. We directly use the mapped file and the code is sooo much simpler to read and understand!
+**mmap** is a game changer without any exaggeration. Not only we get rid of the overhead because of reading from streams. We no longer have to allocate 512MB buffers to read from file. We directly use the mapped file and the code is sooo much simpler to read and understand!
 
-I think it's finally time to tackel **std::unordered_map\<...\>()**. **std::unordered_map** is one big linked-list with an array of pointers to the buckets that enables efficient access to an element without iterating from the begining. This type of architecture has benifits like it never has to move the elements from one memory address to another as the number of elements increase.
+I think it's finally time to do something about **std::unordered_map\<...\>()**. **std::unordered_map** is one big linked-list with an array of pointers to the buckets that enables efficient access to an element without iterating from the beginning. This type of architecture has benefits like it never has to move the elements from one memory address to another as the number of elements increase.
 
 But this leads to pointer chasing which is very bad for the cache
 
-Since we already know the max number of elements we need to support we can simple use a **std::vector** which are best friends with cache and preallocate memory that we need.
+Since we already know the max number of elements we need to support we can simple use a **std::vector** which are best friends with cache and pre-allocate memory that we need.
 
 For this iteration let's focus on data-oriented design principles and make the data-structures as cache friendly as possible.
 
@@ -1181,6 +1181,7 @@ For this iteration let's focus on data-oriented design principles and make the d
 #include <limits>
 #include <string>
 #include <string_view>
+#include <sys/cdefs.h>
 #include <sys/fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -1188,7 +1189,7 @@ For this iteration let's focus on data-oriented design principles and make the d
 #include <unistd.h>
 #include <vector>
 
-constexpr size_t NUM_THREADS = 8;
+constexpr size_t NUM_THREADS = 16;
 
 class FastMap {
   private:
@@ -1210,17 +1211,19 @@ class FastMap {
     size_t mask_;
 
     size_t fast_hash(std::string_view sv) {
-        size_t hash = 14695981039346656037ULL;
-        for (char c : sv) {
-            hash ^= static_cast<size_t>(c);
-            hash *= 1099511628211ULL;
-        }
+        assert(!sv.empty());
+
+        uint64_t hash = 0;
+        for (size_t index = 0; index < sv.size(); ++index)
+            hash = hash * 1315423911u + static_cast<unsigned char>(sv[index]);
         return hash;
     }
 
     size_t getIdx(std::string_view queryLocation) {
+        assert(!queryLocation.empty());
+
         size_t hash = fast_hash(queryLocation);
-        size_t idx = hash & mask_;
+        size_t idx = hash & this->mask_;
         while (true) {
             const auto& location = this->data[idx].location;
             if (location.size() <= 0 || location == queryLocation) {
@@ -1233,10 +1236,13 @@ class FastMap {
     double roundTowardsINF(double value) const { return std::round(value * 10.0) / 10.0; }
 
     bool sortInplace() {
+        assert(this->data.size() > 0);
+
         std::sort(this->data.begin(), this->data.end(),
                   [](const LocationEntry_& a, const LocationEntry_& b) {
                       return a.location < b.location;
                   });
+
         return true;
     }
 
@@ -1247,8 +1253,12 @@ class FastMap {
 
     size_t size() const { return this->capacity_; }
 
-    bool update(std::string_view location, int32_t temperature) {
+    __attribute__((hot)) bool update(std::string_view location, int32_t temperature) {
+        assert(!location.empty());
+
         size_t idx = this->getIdx(location);
+
+        assert(idx >= 0 && idx < this->capacity_);
 
         if (this->data[idx].location.size() <= 0) {
             this->data[idx].location = std::string(location);
@@ -1257,11 +1267,12 @@ class FastMap {
         this->data[idx].sum += temperature;
         this->data[idx].min = std::min(this->data[idx].min, temperature);
         this->data[idx].max = std::max(this->data[idx].max, temperature);
+
         return true;
     }
 
     bool update(const FastMap& other) {
-        for (int i = 0; i < other.size(); ++i) {
+        for (size_t i = 0; i < other.size(); ++i) {
             const auto& otherLocation = other.data[i].location;
 
             if (otherLocation.size() <= 0) continue;
@@ -1276,6 +1287,7 @@ class FastMap {
             this->data[thisIdx].min = std::min(this->data[thisIdx].min, other.data[i].min);
             this->data[thisIdx].max = std::max(this->data[thisIdx].max, other.data[i].max);
         }
+
         return true;
     }
 
@@ -1344,23 +1356,27 @@ void unMapFile(MMAPFile f) { munmap(const_cast<char*>(f.filePtr), f.fileSize); }
 size_t getBatchSize(size_t fileSize) { return (fileSize + (NUM_THREADS - 1)) / NUM_THREADS; }
 
 // Assumes format: [-]D[D].D where D is digit
-int32_t parseInt32(const char* start, const char* end) {
-    bool neg = (*start == '-');
-    if (neg) start++;
-    size_t len = end - start;
-    int32_t num = 0;
-    if (len == 3) {
-        num += (*(start + 0) & 0xF) * 10;
-        num += (*(start + 2) & 0xF) * 1;
-    } else if (len == 4) {
-        num += (*(start + 0) & 0xF) * 100;
-        num += (*(start + 1) & 0xF) * 10;
-        num += (*(start + 3) & 0xF) * 1;
+int32_t parseInt32(const char* start) {
+    int32_t value = 0;
+    bool isNegative = false;
+
+    if (start[0] == '-') {
+        isNegative = true;
+        start++;
     }
-    return neg ? -num : num;
+
+    value = (start[0] - '0') * 10 + start[2] - '0';
+
+    if (start[2] == '.') {
+        value = (start[0] - '0') * 100 + (start[1] - '0') * 10 + start[3] - '0';
+    }
+
+    return isNegative ? -value : value;
 }
 
 std::pair<std::string_view, int32_t> parseLine(std::string_view line) {
+    assert(!line.empty());
+
     size_t semicolonPos = line.find(';');
     assert(semicolonPos != std::string_view::npos);
     std::string_view locationView = line.substr(0, semicolonPos);
@@ -1379,15 +1395,13 @@ std::pair<std::string_view, int32_t> parseLine(std::string_view line) {
     assert(tempEnd > tempStart);
 
     const char* start = line.data() + tempStart;
-    const char* end = line.data() + tempEnd;
-    int32_t temp_int = parseInt32(start, end);
+    int32_t temp_int = parseInt32(start);
 
     return std::make_pair(locationView, temp_int);
 }
 
-size_t skipTillNextLine(size_t threadIndex, size_t startPos, MMAPFile f) {
+size_t skipTillNextLine(size_t startPos, MMAPFile f) {
     assert(startPos > 0);
-    assert(threadIndex > 0);
 
     const char* prevChar = f.filePtr + startPos - 1;
     if (*prevChar == '\n') {
@@ -1406,10 +1420,10 @@ size_t skipTillNextLine(size_t threadIndex, size_t startPos, MMAPFile f) {
     return bytesSkipped;
 }
 
-void processLinesInCurrBatch(size_t startPos, size_t batchEnd, MMAPFile f, FastMap& m) {
+void processLinesInCurrBatch(size_t startPos, size_t batchEndPos, MMAPFile f, FastMap& m) {
     size_t pos = startPos;
 
-    while (pos < batchEnd && pos < f.fileSize) {
+    while (pos < batchEndPos && pos < f.fileSize) {
         size_t newlinePos = pos;
         while (newlinePos < f.fileSize && *(f.filePtr + newlinePos) != '\n') {
             ++newlinePos;
@@ -1435,7 +1449,7 @@ void accumulateBatch(size_t threadIndex, size_t startPos, size_t batchSizeBytes,
 
     // Skip to the next line boundary at the start for non-zero threads
     if (threadIndex > 0) {
-        size_t bytesSkipped = skipTillNextLine(threadIndex, startPos, f);
+        size_t bytesSkipped = skipTillNextLine(startPos, f);
         startPos += bytesSkipped;
     }
 
@@ -1465,7 +1479,7 @@ void processInBatches(MMAPFile f, size_t batchSize, FastMap& finalMap) {
     accumulateThreadResults(maps, finalMap);
 }
 
-void processInOneBatch(MMAPFile f, FastMap& finalMap) {
+void processLinesInSingleBatch(MMAPFile f, FastMap& finalMap) {
     accumulateBatch(0, 0, f.fileSize, finalMap, f);
 }
 
@@ -1477,7 +1491,7 @@ void accumulate(MMAPFile f, FastMap& finalMap) {
     if (batchSize > 4 * 1024) {
         processInBatches(f, batchSize, finalMap);
     } else {
-        processInOneBatch(f, finalMap);
+        processLinesInSingleBatch(f, finalMap);
     }
 }
 
@@ -1500,24 +1514,23 @@ int main(int argc, char* argv[]) {
 
     return EXIT_SUCCESS;
 }
-
 ```
 
 </ExpandableCode>
 
 ```sh
-Time (mean ± σ):     32.159 s ±  0.117 s    [User: 70.174 s, System: 12.352 s]
-Range (min … max):   32.056 s … 32.436 s    10 runs
+Time (mean ± σ):     32.188 s ±  0.101 s    [User: 71.249 s, System: 11.052 s]
+Range (min … max):   32.047 s … 32.406 s    10 runs
 ```
-
-#### Fast Map
 
 <object
   type="image/svg+xml"
-  data="/sol_fast_map.svg"
+  data="/final_probably.svg"
   style={{ width: "100%" }}
 ></object>
 
 Nice.
 
-### More comming soonish...
+I resort to open-addressed hashmap with very simple hash function and we're now doing slightly better than the most optimal solution.
+
+### More coming soonish...
