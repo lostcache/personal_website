@@ -1531,6 +1531,10 @@ Range (min … max):   32.047 s … 32.406 s    10 runs
 
 Nice.
 
-I resort to open-addressed hashmap with very simple hash function and we're now doing slightly better than the most optimal solution.
+I finally resort to open-addressed hashmap with very simple hash function and we're now doing slightly better than the most optimal solution.
 
-### More coming soonish...
+TODO: I'd like to try some ideas to make FastMap a bit more cache friendly by using just one 32 bit integer to store both min and max values but i doubt it'll make much of a difference, still will probably definitely try.
+
+TODO: Summarize current results nicely in a table with benchmarks.
+
+But honestly i'm a little bored just jump to some rust, zig (my personal favorite).
