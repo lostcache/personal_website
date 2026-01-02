@@ -19,6 +19,7 @@
     "mermaid": "^11.12.2",
     "prettier": "^3.7.4",
     "reading-time": "^1.5.0",
-    "sharp": "^0.34.3"
+    "sharp": "^0.34.3",
+    "unist-util-visit": "^5.0.0"
   }
 }
