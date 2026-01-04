@@ -20,7 +20,7 @@ const posts = (await getCollection("blog")).sort(
         width: 100%;
         max-width: 100%;
         margin: 0;
-        padding: 2em 0;
+        padding: 1em 0;
         height: calc(100vh - 120px);
         overflow: hidden;
       }
@@ -51,7 +51,7 @@ const posts = (await getCollection("blog")).sort(
       }
 
       .intro {
-        margin-bottom: 3em;
+        margin-bottom: 1em;
         text-align: center;
       }
       .intro h1 {
@@ -65,8 +65,8 @@ const posts = (await getCollection("blog")).sort(
 
       .resume-button {
         display: inline-block;
-        margin-top: 1.5rem;
-        padding: 0.55rem 1.0rem;
+        margin-top: 1.0rem;
+        padding: 0.3rem 0.5rem;
         background: #000000;
         color: #ffffff;
         text-decoration: none;
@@ -105,12 +105,12 @@ const posts = (await getCollection("blog")).sort(
       }
 
       .bento-grid::-webkit-scrollbar {
-        width: 8px;
+        width: 5px;
       }
 
       .bento-grid::-webkit-scrollbar-track {
         background: rgba(0, 0, 0, 0.05);
-        border-radius: 4px;
+        border-radius: 2px;
       }
 
       .bento-grid::-webkit-scrollbar-thumb {
@@ -137,7 +137,7 @@ const posts = (await getCollection("blog")).sort(
       .bento-item {
         background: var(--gray-light);
         border-radius: 12px;
-        padding: 1.5rem;
+        padding: 1rem;
         text-decoration: none;
         color: var(--black);
         transition:
@@ -165,32 +165,31 @@ const posts = (await getCollection("blog")).sort(
 
       .bento-item h3 {
         margin: 0;
-        font-size: 1.4rem;
+        font-size: 1.0rem;
         line-height: 1.2;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.2rem;
       }
 
       .bento-item p {
         margin: 0;
-        font-size: 0.95rem;
+        font-size: 0.85rem;
         color: var(--gray);
-        line-height: 1.4;
+        line-height: 1.2;
       }
 
       .bento-item .date {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         color: var(--gray);
-        margin-top: 1rem;
+        margin-top: 0.2rem;
         opacity: 0.8;
       }
 
 
       .section-title {
         text-align: left;
-        margin: 0 0 1rem 0;
-        font-size: 1.5rem;
+        margin: 0 0 0.5rem 0;
+        font-size: 1.2rem;
         border-bottom: 1px solid var(--gray-light);
-        padding-bottom: 0.5rem;
         flex-shrink: 0;
       }
 
@@ -203,7 +202,7 @@ const posts = (await getCollection("blog")).sort(
 
       .experience-card {
         background: var(--gray-light);
-        border-radius: 8px;
+        border-radius: 12px;
         padding: 1rem;
         border: 1px solid rgba(0, 0, 0, 0.05);
         transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -300,7 +299,7 @@ const posts = (await getCollection("blog")).sort(
     <main>
       <div class="main-layout">
         <div class="left-column">
-          <h2 class="section-title">Recent Blogs</h2>
+            <h2 class="section-title">Blogs ({posts.length})</h2>
           <div class="bento-grid">
             {
               posts.map((post) => (
@@ -324,18 +323,23 @@ const posts = (await getCollection("blog")).sort(
 
         <div class="right-column">
           <div class="intro">
-              <h2 style="margin-bottom: 0px">Hi, I'm Harsh</h2>
-              <tiny style="font-size: 15px; margin-top: 0px">100% Biodegradable, Cruelty-Free. Made in India</tiny>
-              <p style="margin-top: 1rem; font-size: 1.2rem; line-height: 1.6;"> Hope you're well. Welcome to my second brain and digital garden. </p>
+              <h2 style="margin-bottom: 0px">Hi, I'm Harsh <a target="_blank" href="https://www.youtube.com/watch?v=Zc7Gm2CpWfc" style="font-size: 0.5em; vertical-align: middle; text-decoration: none; opacity: 0.7;">(Her-sh)</a></h2> 
+              <tiny style="font-size: 15px; margin-top: 0px">He/Him, 100% Biodegradable, Cruelty-Free. Made in India</tiny>
+              <p style="margin-top: 1rem; font-size: 1.2rem; line-height: 1.6;"> Hope you're well. Welcome to my digital garden. </p>
               <p style="margin-top: 1rem; font-size: 1.2rem; line-height: 1.6;">
             Recent <strong>CS grad from LMU</strong> (3.90 GPA) based in <strong>Los Angeles, CA</strong>. <strong>3+ years</strong> as a software engineer building <strong>full-stack web applications</strong>. My real passion is <strong>math, systems & performance engineering</strong>—I build <strong>distributed systems</strong>, mini kernels, implement the same thing in different languages that I'm learning, and write about the journey.
             </p>
           </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h2 class="section-title" style="margin: 0;">Experience</h2>
-            <a href="/harsh_devisha_resume.pdf" download="Harsh_Devisha_Resume.pdf" class="resume-button" style="margin: 0;">
-              Download Resume
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <h1 class="section-title" style="margin: 0;">Experience</h1>
+            <a href="/harsh_devisha_resume.pdf" target="_blank" rel="noopener noreferrer" class="resume-button" style="margin: 0; display: inline-flex; align-items: center; gap: 0.4rem;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+              Resume
             </a>
           </div>
 

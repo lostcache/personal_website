@@ -12,7 +12,7 @@ Starting with rust.
 
 I don't have the dumb version of the solution in rust but straight away I notice how easy it is to handle errors in Rust just because you have no other option.
 
-**Result\<...\>** and **Option\<...\>** makes things really elegant. But still rust does a pretty *good job* at hiding the underlying behaviour like memory allocations.
+**Result\<...\>** and **Option\<...\>** makes things really elegant. But still rust does a pretty _good job_ at hiding the underlying behaviour like memory allocations.
 
 But upon testing optimized version of a multi-threaded solution that only perfoms a single copy of location strings from underlying buffer of **std::io::BufReader** to the **std::collections::BTreeMap** vs the unoptimized solution of reading from the underlying buffer to a **std::string::String** and then parsing (2 copies), to my surprise the unoptimized solution consistently did ~3 seconds better than the optimized solution and not just that the unoptimized solution is sooo much nicer to read and as a result easier to maintain.
 
@@ -284,7 +284,6 @@ fn main() {
 
 </ExpandableCode>
 
-
 Unoptimized Code.
 
 <ExpandableCode maxHeight="200px">
@@ -527,33 +526,33 @@ const NUM_THREADS: usize = 8;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct LocationEntry {
-    location: String,
-    min: i32,
-    max: i32,
-    sum: i64,
-    freq: usize,
+location: String,
+min: i32,
+max: i32,
+sum: i64,
+freq: usize,
 }
 
 impl LocationEntry {
-    pub fn new() -> Self {
-        Self {
-            location: std::string::String::new(),
-            min: std::i32::MAX,
-            max: std::i32::MIN,
-            sum: 0,
-            freq: 0,
-        }
-    }
+pub fn new() -> Self {
+Self {
+location: std::string::String::new(),
+min: std::i32::MAX,
+max: std::i32::MIN,
+sum: 0,
+freq: 0,
+}
+}
 }
 
 struct FastMap {
-    data: std::vec::Vec<LocationEntry>,
-    mask: usize,
+data: std::vec::Vec<LocationEntry>,
+mask: usize,
 }
 
 impl FastMap {
-    fn hash(&self, key: &[u8]) -> usize {
-        let mut hash = 0 as usize;
+fn hash(&self, key: &[u8]) -> usize {
+let mut hash = 0 as usize;
 
         for ch in key {
             hash = hash * 1315423911 as usize + *ch as usize;
@@ -645,18 +644,19 @@ impl FastMap {
             mask: (1 << 14) - 1,
         }
     }
+
 }
 
-fn get_file_path() -> std::path::PathBuf {
-    let args: std::vec::Vec<String> = std::env::args().collect();
-    match args.len() {
-        2 => std::path::PathBuf::from(&args[1]),
-        _ => std::path::PathBuf::from("../data/measurements.txt"),
-    }
+fn get*file_path() -> std::path::PathBuf {
+let args: std::vec::Vec<String> = std::env::args().collect();
+match args.len() {
+2 => std::path::PathBuf::from(&args[1]),
+* => std::path::PathBuf::from("../data/measurements.txt"),
+}
 }
 
 fn skip_first_line(start: u64, mmap_f: &[u8]) -> u64 {
-    assert!(start > 0);
+assert!(start > 0);
 
     let prev_char = mmap_f[(start - 1) as usize];
 
@@ -673,16 +673,17 @@ fn skip_first_line(start: u64, mmap_f: &[u8]) -> u64 {
     }
 
     new_line_char_pos as u64 - start + 1
+
 }
 
 fn parse_i32_from_byte_slice(slice: &[u8]) -> i32 {
-    let mut pos = 0 as usize;
-    let is_negative = if slice[0] == b'-' {
-        pos += 1;
-        true
-    } else {
-        false
-    };
+let mut pos = 0 as usize;
+let is_negative = if slice[0] == b'-' {
+pos += 1;
+true
+} else {
+false
+};
 
     let num = if slice[pos + 1] == b'.' {
         (slice[pos] - b'0') as i32 * 10 + (slice[pos + 2] - b'0') as i32
@@ -697,12 +698,13 @@ fn parse_i32_from_byte_slice(slice: &[u8]) -> i32 {
     } else {
         num
     }
+
 }
 
 fn parse_line(line: &[u8]) -> Option<(&[u8], i32)> {
-    if line.is_empty() {
-        return None;
-    }
+if line.is_empty() {
+return None;
+}
 
     let mut semicol_pos = 0 as usize;
     loop {
@@ -723,10 +725,11 @@ fn parse_line(line: &[u8]) -> Option<(&[u8], i32)> {
     let temperature = parse_i32_from_byte_slice(temperature_slice);
 
     Some((location, temperature))
+
 }
 
 fn process_batch(thread_idx: usize, mmap_f: &[u8], start: u64, batch_bytes: u64) -> FastMap {
-    let mut processed_bytes = 0 as u64;
+let mut processed_bytes = 0 as u64;
 
     if thread_idx != 0 {
         processed_bytes += skip_first_line(start, mmap_f);
@@ -763,13 +766,14 @@ fn process_batch(thread_idx: usize, mmap_f: &[u8], start: u64, batch_bytes: u64)
     }
 
     m
+
 }
 
 fn process_in_batches(file_path: &std::path::Path, file_size: u64) -> FastMap {
-    // Create mmap once and share it across all threads
-    let f = std::fs::File::open(file_path).unwrap();
-    let mmap_f = unsafe { memmap2::Mmap::map(&f).unwrap() };
-    let mmap_arc = std::sync::Arc::new(mmap_f);
+// Create mmap once and share it across all threads
+let f = std::fs::File::open(file_path).unwrap();
+let mmap_f = unsafe { memmap2::Mmap::map(&f).unwrap() };
+let mmap_arc = std::sync::Arc::new(mmap_f);
 
     let batch_size = (file_size + NUM_THREADS as u64 - 1) / NUM_THREADS as u64;
     let mut handles: std::vec::Vec<std::thread::JoinHandle<FastMap>> =
@@ -791,34 +795,37 @@ fn process_in_batches(file_path: &std::path::Path, file_size: u64) -> FastMap {
     }
 
     m
+
 }
 
 fn process_in_single_batch(file_path: &std::path::Path, file_size: u64) -> FastMap {
-    let f = std::fs::File::open(file_path).unwrap();
-    let mmap_f = unsafe { memmap2::Mmap::map(&f).unwrap() };
-    process_batch(0, &mmap_f, 0, file_size)
+let f = std::fs::File::open(file_path).unwrap();
+let mmap_f = unsafe { memmap2::Mmap::map(&f).unwrap() };
+process_batch(0, &mmap_f, 0, file_size)
 }
 
 fn process(file_path: &std::path::Path) -> FastMap {
-    let f = std::fs::File::open(file_path).unwrap();
-    let file_size = f.metadata().unwrap().len();
+let f = std::fs::File::open(file_path).unwrap();
+let file_size = f.metadata().unwrap().len();
 
     if file_size > 4 * 1024 {
         process_in_batches(file_path, file_size)
     } else {
         process_in_single_batch(file_path, file_size)
     }
+
 }
 
 fn main() {
-    let file_path = get_file_path();
+let file_path = get_file_path();
 
     let mut m = process(&file_path);
 
     m.print_sorted();
+
 }
 
-```
+````
 
 </ ExpandableCode>
 
@@ -827,6 +834,6 @@ fn main() {
 Time (mean ± σ):     32.062 s ±  0.048 s    [User: 78.749 s, System: 12.305 s]
 Range (min … max):   31.996 s … 32.126 s    10 runs
 
-```
+````
 
 ### Zig (my favorite) OTW...
