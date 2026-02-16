@@ -1,0 +1,8 @@
+{
+  "track_id": "init_c_migration_20260216",
+  "type": "migration",
+  "status": "new",
+  "created_at": "2026-02-16T00:00:00Z",
+  "updated_at": "2026-02-16T00:00:00Z",
+  "description": "Initialize the project structure for the C/HTML/CSS migration, including the build system (e.g., Makefile) and a basic 'Hello World' server implementation."
+}
