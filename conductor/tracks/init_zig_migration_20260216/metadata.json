@@ -1,0 +1,8 @@
+{
+  "track_id": "init_zig_migration_20260216",
+  "type": "migration",
+  "status": "new",
+  "created_at": "2026-02-16T00:00:00Z",
+  "updated_at": "2026-02-16T00:00:00Z",
+  "description": "Initialize the project structure for a Zig-based Static Site Generator (SSG) migration, including the build system and basic HTML generation."
+}

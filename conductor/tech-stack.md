@@ -6,7 +6,7 @@ Migrate from the existing Astro framework to a zero-dependency architecture.
 
 ## Core Technologies
 
-- **Build System/SSG:** C (Custom Static Site Generator).
+- **Build System/SSG:** Zig (Custom Static Site Generator).
 - **Frontend Structure:** HTML5 (Vanilla, Generated).
 - **Frontend Styling:** CSS3 (Vanilla).
 - **Frontend Logic:** JavaScript (Vanilla, no frameworks).
