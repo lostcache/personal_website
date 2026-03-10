@@ -1,6 +1,7 @@
 # Track Plan: Initialize Zig-based SSG Migration
 
 ## Phase 1: Project Scaffolding & Build System
+
 - [ ] Task: Create directory structure (`src/`, `content/`, `templates/`, `dist/`) and initialize `build.zig`.
   - [ ] Sub-task: Create directories.
   - [ ] Sub-task: Create a dummy `src/main.zig` (Hello World to stdout).
@@ -11,6 +12,7 @@
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Project Scaffolding & Build System' (Protocol in workflow.md)
 
 ## Phase 2: SSG Core Implementation (File I/O)
+
 - [ ] Task: Implement File Reading.
   - [ ] Sub-task: Create a utility function/struct to handle file reading using `std.fs`.
   - [ ] Sub-task: Handle file read errors gracefully.
@@ -23,6 +25,7 @@
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: SSG Core Implementation' (Protocol in workflow.md)
 
 ## Phase 3: Site Generation & Content
+
 - [ ] Task: Create Source Content.
   - [ ] Sub-task: Create `templates/layout.html` with basic HTML5 structure and a `{{ content }}` placeholder.
   - [ ] Sub-task: Create `content/index.txt` with the homepage body text.
