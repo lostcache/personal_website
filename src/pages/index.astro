@@ -5,6 +5,7 @@ import Footer from "../components/Footer.astro";
 import { SITE_TITLE, SITE_DESCRIPTION } from "../consts";
 import { getCollection } from "astro:content";
 import FormattedDate from "../components/FormattedDate.astro";
+import { Icon } from "astro-icon/components";
 
 const posts = (await getCollection("blog")).sort(
   (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
@@ -197,7 +198,66 @@ const posts = (await getCollection("blog")).sort(
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 1rem;
+        margin-bottom: 2rem;
+      }
+
+      .projects-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
         margin-bottom: 3rem;
+      }
+
+      .project-card {
+        background: var(--gray-light);
+        border-radius: 12px;
+        padding: 1rem;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        text-decoration: none;
+        color: inherit;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      :global([data-theme="dark"]) .project-card {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        color: #fff;
+      }
+
+      .project-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      .project-header {
+        margin-bottom: 0.5rem;
+      }
+
+      .project-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0 0 0.25rem 0;
+        color: var(--black);
+      }
+
+      :global([data-theme="dark"]) .project-title {
+        color: #ffffff;
+      }
+
+      .project-description {
+        font-size: 0.85rem;
+        color: var(--gray);
+        margin: 0;
+        line-height: 1.4;
+      }
+
+      @media (max-width: 720px) {
+        .projects-grid {
+          grid-template-columns: 1fr;
+        }
       }
 
       .experience-card {
@@ -323,12 +383,38 @@ const posts = (await getCollection("blog")).sort(
 
         <div class="right-column">
           <div class="intro">
-              <h2 style="margin-bottom: 0px">Hi, I'm Harsh <a target="_blank" href="https://www.youtube.com/watch?v=Zc7Gm2CpWfc" style="font-size: 0.5em; vertical-align: middle; text-decoration: none; opacity: 0.7;">(Her-sh)</a></h2> 
+              <h2 style="margin-bottom: 0px">Hi, I'm Harsh <a target="_blank" href="https://www.youtube.com/watch?v=Zc7Gm2CpWfc" style="font-size: 0.5em; vertical-align: middle; text-decoration: none; opacity: 0.7;">(Her-sh)</a></h2>
               <tiny style="font-size: 15px; margin-top: 0px">He/Him, 100% Biodegradable, Cruelty-Free. Made in India</tiny>
-              <p style="margin-top: 1rem; font-size: 1.2rem; line-height: 1.6;"> Hope you're well. Welcome to my digital garden. </p>
               <p style="margin-top: 1rem; font-size: 1.2rem; line-height: 1.6;">
-            Recent <strong>CS grad from LMU</strong> (3.90 GPA) based in <strong>Los Angeles, CA</strong>. <strong>3+ years</strong> as a software engineer building <strong>full-stack web applications</strong>. My real passion is <strong>math, distributed systems & performance engineering</strong>—I build distributed systems, mini kernels, implement the same thing in different languages, and write about the journey (just started).
+              <p style="margin-top: 1rem; font-size: 1.2rem; line-height: 1.6;"> Hope you're well. Welcome to my digital garden. </p>
+              <p style="margin-top: 1rem; font-size: 1.2rem; line-height: 1.6; text-align: left">
+                Recent <strong>CS grad from LMU</strong> (3.90 GPA) based in <strong>Los Angeles, CA</strong> with <strong>3+ YOE</strong> in  <strong>web-dev</strong>. Interested in <strong>Systems Engineering and Distributed Systems</strong>.
+              </p>
             </p>
+            <p style="font-size: 1.2rem; line-height: 1.6; text-align: left">
+                I work on tools to help me vibe-code responsibly, automate things on my PC using LLMs, distributed message queue and my hobby OS
+            </p>
+          </div>
+
+          <h1 class="section-title" style="margin-bottom: 0.5rem;">Projects</h1>
+          <div class="projects-grid">
+            <div class="project-card">
+              <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.25rem;">
+                  <h3 class="project-title" style="margin: 0;">dunno</h3>
+                  <a href="https://github.com/lostcache/dunno" target="_blank" rel="noopener noreferrer" style="color: inherit; opacity: 0.7; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
+                    <Icon name="simple-icons:github" size={20} />
+                  </a>
+                </div>
+                <p class="project-description">CLI + web tool to manage codebase knowledge at file level for AI agents. Graph-structured context with SurrealDB backend, interactive visualization, and REST API.</p>
+              </div>
+              <div class="tech-tags" style="margin-top: 0.75rem;">
+                <span class="tech-tag">Rust</span>
+                <span class="tech-tag">SurrealDB</span>
+                <span class="tech-tag">TypeScript</span>
+                <span class="tech-tag">Graph DB</span>
+              </div>
+            </div>
           </div>
 
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
@@ -408,6 +494,7 @@ const posts = (await getCollection("blog")).sort(
               </div>
             </div>
           </div>
+
         </div>
       </div>
     </main>
