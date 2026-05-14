@@ -10,416 +10,119 @@ import { Icon } from "astro-icon/components";
 const posts = (await getCollection("blog")).sort(
   (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
 );
+
+const experience = [
+  {
+    title: "Graduate Research Assistant",
+    company: "Kubishi | LMU Seaver School of Science and Engineering",
+    date: "August 2025 - Present",
+    tags: ["Python", "Mathematica", "Discrete Math", "Decentralized Algorithms", "Algorithm Analysis"],
+  },
+  {
+    title: "Founding Engineer",
+    company: "SetFindr",
+    date: "December 2024 - May 2025",
+    tags: ["Python", "FastAPI", "Node.js", "JWT", "Qdrant", "Google Maps API", "OAuth2", "OpenAI API", "AWS (EC2, S3)", "MongoDB"],
+  },
+  {
+    title: "Data Specialist",
+    company: "LMU Career and Professional Development Department",
+    date: "August 2024 - May 2025",
+    tags: ["ETL Pipelines", "Data Analysis", "Python", "SQL"],
+  },
+  {
+    title: "Junior Software Engineer",
+    company: "Nexuslink Services",
+    date: "December 2021 - December 2023",
+    tags: ["JWT Session Management", "REST APIs", "React-Redux", "ExpressJS", "MongoDB"],
+  },
+];
 ---
 
 <!doctype html>
 <html lang="en">
   <head>
     <BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
-    <style>
-      main {
-        width: 100%;
-        max-width: 100%;
-        margin: 0;
-        padding: 1em 0;
-        height: calc(100vh - 120px);
-        overflow: hidden;
-      }
-
-      .main-layout {
-        display: grid;
-        grid-template-columns: 25% 75%;
-        gap: 0;
-        max-width: 100%;
-        height: 100%;
-      }
-
-      .left-column {
-        order: 1;
-        padding-left: 1em;
-        padding-right: 1.5em;
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        overflow: hidden;
-      }
-
-      .right-column {
-        order: 2;
-        padding-right: 2em;
-        max-width: 1000px;
-        overflow-y: auto;
-      }
-
-      .intro {
-        margin-bottom: 1em;
-        text-align: center;
-      }
-      .intro h1 {
-        font-size: 3em;
-        margin-bottom: 0.2em;
-      }
-      .intro p {
-        font-size: 1.2em;
-        color: var(--text-muted);
-      }
-
-      .resume-button {
-        display: inline-block;
-        margin-top: 1.0rem;
-        padding: 0.3rem 0.5rem;
-        background: #000000;
-        color: #ffffff;
-        text-decoration: none;
-        border-radius: 8px;
-        font-size: 1rem;
-        font-weight: 600;
-        transition: all 0.2s ease;
-        border: 2px solid #000000;
-      }
-
-      :global([data-theme="dark"]) .resume-button {
-        background: #ffffff;
-        color: #000000;
-        border-color: #ffffff;
-      }
-
-      .resume-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      }
-
-      :global([data-theme="dark"]) .resume-button:hover {
-        box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
-      }
-
-      .bento-grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 1rem;
-        overflow-y: auto;
-        overflow-x: hidden;
-        flex: 1;
-        padding-bottom: 1rem;
-        min-height: 0;
-        padding-right: 0.5rem;
-      }
-
-      .bento-grid::-webkit-scrollbar {
-        width: 5px;
-      }
-
-      .bento-grid::-webkit-scrollbar-track {
-        background: rgba(0, 0, 0, 0.05);
-        border-radius: 2px;
-      }
-
-      .bento-grid::-webkit-scrollbar-thumb {
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 4px;
-      }
-
-      .bento-grid::-webkit-scrollbar-thumb:hover {
-        background: rgba(0, 0, 0, 0.5);
-      }
-
-      :global([data-theme="dark"]) .bento-grid::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.05);
-      }
-
-      :global([data-theme="dark"]) .bento-grid::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.3);
-      }
-
-      :global([data-theme="dark"]) .bento-grid::-webkit-scrollbar-thumb:hover {
-        background: rgba(255, 255, 255, 0.5);
-      }
-
-      .bento-item {
-        background: var(--gray-light);
-        border-radius: 12px;
-        padding: 1rem;
-        text-decoration: none;
-        color: var(--black);
-        transition:
-          transform 0.2s ease,
-          box-shadow 0.2s ease;
-        border: 1px solid rgba(0, 0, 0, 0.05);
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        overflow: visible;
-        min-height: fit-content;
-      }
-
-      /* Dark mode adjustment */
-      :global([data-theme="dark"]) .bento-item {
-        background: #1a1a1a;
-        border: 1px solid #333;
-        color: #fff;
-      }
-
-      .bento-item:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-      }
-
-      .bento-item h3 {
-        margin: 0;
-        font-size: 1.0rem;
-        line-height: 1.2;
-        margin-bottom: 0.2rem;
-      }
-
-      .bento-item p {
-        margin: 0;
-        font-size: 0.85rem;
-        color: var(--gray);
-        line-height: 1.2;
-      }
-
-      .bento-item .date {
-        font-size: 0.75rem;
-        color: var(--gray);
-        margin-top: 0.2rem;
-        opacity: 0.8;
-      }
-
-
-      .section-title {
-        text-align: left;
-        margin: 0 0 0.5rem 0;
-        font-size: 1.2rem;
-        border-bottom: 1px solid var(--gray-light);
-        flex-shrink: 0;
-      }
-
-      .experience-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-        margin-bottom: 2rem;
-      }
-
-      .projects-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-        margin-bottom: 3rem;
-      }
-
-      .project-card {
-        background: var(--gray-light);
-        border-radius: 12px;
-        padding: 1rem;
-        border: 1px solid rgba(0, 0, 0, 0.05);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        text-decoration: none;
-        color: inherit;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-      }
-
-      :global([data-theme="dark"]) .project-card {
-        background: #1a1a1a;
-        border: 1px solid #333;
-        color: #fff;
-      }
-
-      .project-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      }
-
-      .project-header {
-        margin-bottom: 0.5rem;
-      }
-
-      .project-title {
-        font-size: 1.1rem;
-        font-weight: 600;
-        margin: 0 0 0.25rem 0;
-        color: var(--black);
-      }
-
-      :global([data-theme="dark"]) .project-title {
-        color: #ffffff;
-      }
-
-      .project-description {
-        font-size: 0.85rem;
-        color: var(--gray);
-        margin: 0;
-        line-height: 1.4;
-      }
-
-      @media (max-width: 720px) {
-        .projects-grid {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      .experience-card {
-        background: var(--gray-light);
-        border-radius: 12px;
-        padding: 1rem;
-        border: 1px solid rgba(0, 0, 0, 0.05);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-      }
-
-      :global([data-theme="dark"]) .experience-card {
-        background: #1a1a1a;
-        border: 1px solid #333;
-      }
-
-      .experience-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      }
-
-      .experience-header {
-        margin-bottom: 0.75rem;
-      }
-
-      .experience-title {
-        font-size: 1.1rem;
-        font-weight: 600;
-        margin: 0 0 0.25rem 0;
-        color: var(--black);
-      }
-
-      :global([data-theme="dark"]) .experience-title {
-        color: #ffffff;
-      }
-
-      .experience-company {
-        font-size: 0.85rem;
-        color: var(--gray);
-        margin: 0 0 0.2rem 0;
-      }
-
-      .experience-date {
-        font-size: 0.75rem;
-        color: var(--gray);
-        opacity: 0.7;
-      }
-
-      .tech-tags {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.4rem;
-        margin-top: 0.75rem;
-      }
-
-      .tech-tag {
-        background: rgba(0, 0, 0, 0.08);
-        padding: 0.2rem 0.6rem;
-        border-radius: 4px;
-        font-size: 0.7rem;
-        font-weight: 500;
-        color: var(--black);
-      }
-
-      :global([data-theme="dark"]) .tech-tag {
-        background: rgba(255, 255, 255, 0.1);
-        color: #ffffff;
-      }
-
-      @media (max-width: 720px) {
-        main {
-          height: auto;
-          overflow: visible;
-        }
-        .main-layout {
-          grid-template-columns: 1fr;
-          height: auto;
-        }
-        .left-column {
-          order: 2;
-          height: auto;
-          overflow: visible;
-        }
-        .right-column {
-          order: 1;
-          overflow: visible;
-        }
-        .bento-grid {
-          overflow: visible;
-          flex: none;
-        }
-        .experience-grid {
-          grid-template-columns: 1fr;
-        }
-      }
-    </style>
   </head>
   <body>
     <Header />
-    <main>
-      <div class="main-layout">
-        <div class="left-column">
-            <h2 class="section-title">Blogs ({posts.length})</h2>
-          <div class="bento-grid">
-            {
-              posts.map((post) => (
-                <a
-                  href={`/blog/${post.id}/`}
-                  class="bento-item"
-                >
-                  <div>
-                    <h3>{post.data.title}</h3>
-                    <p>{post.data.description}</p>
-                  </div>
-                  <div class="date">
-                      Last Updated,
-                    <FormattedDate date={post.data.pubDate} />
-                  </div>
-                </a>
-              ))
-            }
+    <main class="w-full m-0 py-4 h-auto md:h-[calc(100vh-120px)] md:overflow-hidden">
+      <div class="grid grid-cols-1 md:grid-cols-[25%_75%] h-full">
+
+        <!-- Left: blog posts -->
+        <div class="order-2 md:order-1 pl-4 pr-6 flex flex-col h-auto md:h-full md:overflow-hidden">
+          <h2 class="text-left m-0 mb-2 text-[1.2rem] border-b border-[rgb(var(--gray-light))] shrink-0">
+            Blogs ({posts.length})
+          </h2>
+          <div class="thin-scroll grid grid-cols-1 gap-4 overflow-y-visible md:overflow-y-auto flex-1 pb-4 min-h-0 pr-2">
+            {posts.map((post) => (
+              <a
+                href={`/blog/${post.id}/`}
+                class="bg-[rgb(var(--gray-light))] dark:bg-[#1a1a1a] rounded-xl p-4 no-underline text-[rgb(var(--black))] dark:text-white border border-black/5 dark:border-[#333] flex flex-col justify-between min-h-fit transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_20px_rgba(0,0,0,0.1)]"
+              >
+                <div>
+                  <h3 class="m-0 text-[1rem] leading-tight mb-[0.2rem] line-clamp-2">{post.data.title}</h3>
+                  <p class="m-0 mb-0 text-[0.85rem] text-[rgb(var(--gray))] leading-tight line-clamp-2">{post.data.description}</p>
+                </div>
+                <div class="text-[0.75rem] text-[rgb(var(--gray))] mt-[0.2rem] opacity-80">
+                  Last Updated, <FormattedDate date={post.data.pubDate} />
+                </div>
+              </a>
+            ))}
           </div>
         </div>
 
-        <div class="right-column">
-          <div class="intro">
-              <h2 style="margin-bottom: 0px">Hi, I'm Harsh <a target="_blank" href="https://www.youtube.com/watch?v=Zc7Gm2CpWfc" style="font-size: 0.5em; vertical-align: middle; text-decoration: none; opacity: 0.7;">(Her-sh)</a></h2>
-              <tiny style="font-size: 15px; margin-top: 0px">He/Him, 100% Biodegradable, Cruelty-Free. Made in India</tiny>
-              <p style="margin-top: 1rem; font-size: 1.2rem; line-height: 1.6;">
-              <p style="margin-top: 1rem; font-size: 1.2rem; line-height: 1.6;"> Hope you're well. Welcome to my digital garden. </p>
-              <p style="margin-top: 1rem; font-size: 1.2rem; line-height: 1.6; text-align: left">
-                Recent <strong>CS grad from LMU</strong> (3.90 GPA) based in <strong>Los Angeles, CA</strong> with <strong>3+ YOE</strong> in  <strong>web-dev</strong>. Interested in <strong>Systems Engineering and Distributed Systems</strong>.
-              </p>
+        <!-- Right: intro + projects + experience -->
+        <div class="order-1 md:order-2 pr-4 md:pr-8 overflow-visible md:overflow-y-auto">
+
+          <!-- Intro -->
+          <div class="mb-4 text-center">
+            <h2 class="mb-0">
+              Hi, I'm Harsh
+              <a target="_blank" href="https://www.youtube.com/watch?v=Zc7Gm2CpWfc" class="text-[0.5em] align-middle no-underline opacity-70">(Her-sh)</a>
+            </h2>
+            <div class="text-[15px]">He/Him, 100% Biodegradable, Cruelty-Free. Made in India</div>
+            <p class="mt-4 text-[1.2rem] leading-relaxed">Hope you're well. Welcome to my digital garden.</p>
+            <p class="mt-4 text-[1.2rem] leading-relaxed text-left">
+              Recent <strong>CS grad from LMU</strong> (3.90 GPA) based in <strong>Los Angeles, CA</strong> with <strong>3+ YOE</strong> in <strong>web-dev</strong>. Interested in <strong>Systems Engineering and Distributed Systems</strong>.
             </p>
-            <p style="font-size: 1.2rem; line-height: 1.6; text-align: left">
-                I work on tools to help me vibe-code responsibly, automate things on my PC using LLMs, distributed message queue and my hobby OS
+            <p class="text-[1.2rem] leading-relaxed text-left">
+              I work on tools to help me vibe-code responsibly, automate things on my PC using LLMs, distributed message queue and my hobby OS
             </p>
           </div>
 
-          <h1 class="section-title" style="margin-bottom: 0.5rem;">Projects</h1>
-          <div class="projects-grid">
-            <div class="project-card">
+          <!-- Projects -->
+          <h2 class="text-left m-0 mb-2 text-[1.2rem] font-bold border-b border-[rgb(var(--gray-light))]">Projects</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            <div class="bg-[rgb(var(--gray-light))] dark:bg-[#1a1a1a] rounded-xl p-4 border border-black/5 dark:border-[#333] flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
               <div>
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.25rem;">
-                  <h3 class="project-title" style="margin: 0;">dunno</h3>
-                  <a href="https://github.com/lostcache/dunno" target="_blank" rel="noopener noreferrer" style="color: inherit; opacity: 0.7; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">
+                <div class="flex items-center justify-between mb-1">
+                  <h3 class="m-0 text-[1.1rem] font-semibold text-[rgb(var(--black))] dark:text-white">dunno</h3>
+                  <a href="https://github.com/lostcache/dunno" target="_blank" rel="noopener noreferrer" class="text-[rgb(var(--black))] dark:text-white opacity-70 hover:opacity-100 transition-opacity">
                     <Icon name="simple-icons:github" size={20} />
                   </a>
                 </div>
-                <p class="project-description">CLI + web tool to manage codebase knowledge at file level for AI agents. Graph-structured context with SurrealDB backend, interactive visualization, and REST API.</p>
+                <p class="m-0 mb-0 text-[0.85rem] text-[rgb(var(--gray))] leading-snug">
+                  CLI + web tool to manage codebase knowledge at file level for AI agents. Graph-structured context with SurrealDB backend, interactive visualization, and REST API.
+                </p>
               </div>
-              <div class="tech-tags" style="margin-top: 0.75rem;">
-                <span class="tech-tag">Rust</span>
-                <span class="tech-tag">SurrealDB</span>
-                <span class="tech-tag">TypeScript</span>
-                <span class="tech-tag">Graph DB</span>
+              <div class="flex flex-wrap gap-1.5 mt-3">
+                {["Rust", "SurrealDB", "TypeScript", "Graph DB"].map((tag) => (
+                  <span class="bg-black/8 dark:bg-white/10 px-2.5 py-0.5 rounded text-[0.7rem] font-medium text-[rgb(var(--black))] dark:text-white">{tag}</span>
+                ))}
               </div>
             </div>
           </div>
 
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <h1 class="section-title" style="margin: 0;">Experience</h1>
-            <a href="/harsh_devisha_resume.pdf" target="_blank" rel="noopener noreferrer" class="resume-button" style="margin: 0; display: inline-flex; align-items: center; gap: 0.4rem;">
+          <!-- Experience header -->
+          <div class="flex justify-between items-center mb-2">
+            <h2 class="m-0 text-[1.2rem] font-bold border-b border-[rgb(var(--gray-light))] flex-1">Experience</h2>
+            <a
+              href="/harsh_devisha_resume.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="ml-4 px-2 py-1.5 bg-black text-white no-underline rounded-lg text-base font-semibold inline-flex items-center gap-1.5 border-2 border-black transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.2)] dark:bg-white dark:text-black dark:border-white dark:hover:shadow-[0_4px_12px_rgba(255,255,255,0.3)]"
+            >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                 <polyline points="15 3 21 3 21 9"></polyline>
@@ -429,70 +132,22 @@ const posts = (await getCollection("blog")).sort(
             </a>
           </div>
 
-          <div class="experience-grid">
-            <div class="experience-card">
-              <div class="experience-header">
-                <h3 class="experience-title">Graduate Research Assistant</h3>
-                <p class="experience-company">Kubishi | LMU Seaver School of Science and Engineering</p>
-                <p class="experience-date">August 2025 - Present</p>
+          <!-- Experience cards -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
+            {experience.map((exp) => (
+              <div class="bg-[rgb(var(--gray-light))] dark:bg-[#1a1a1a] rounded-xl p-4 border border-black/5 dark:border-[#333] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
+                <div class="mb-3">
+                  <h3 class="m-0 mb-1 text-[1.1rem] font-semibold text-[rgb(var(--black))] dark:text-white">{exp.title}</h3>
+                  <p class="m-0 mb-[0.2rem] text-[0.85rem] text-[rgb(var(--gray))]">{exp.company}</p>
+                  <p class="m-0 text-[0.75rem] text-[rgb(var(--gray))] opacity-70">{exp.date}</p>
+                </div>
+                <div class="flex flex-wrap gap-1.5 mt-3">
+                  {exp.tags.map((tag) => (
+                    <span class="bg-black/8 dark:bg-white/10 px-2.5 py-0.5 rounded text-[0.7rem] font-medium text-[rgb(var(--black))] dark:text-white">{tag}</span>
+                  ))}
+                </div>
               </div>
-              <div class="tech-tags">
-                <span class="tech-tag">Python</span>
-                <span class="tech-tag">Mathematica</span>
-                <span class="tech-tag">Discrete Math</span>
-                <span class="tech-tag">Decentralized Algorithms</span>
-                <span class="tech-tag">Algorithm Analysis</span>
-              </div>
-            </div>
-
-            <div class="experience-card">
-              <div class="experience-header">
-                <h3 class="experience-title">Founding Engineer</h3>
-                <p class="experience-company">SetFindr</p>
-                <p class="experience-date">December 2024 - May 2025</p>
-              </div>
-              <div class="tech-tags">
-                <span class="tech-tag">Python</span>
-                <span class="tech-tag">FastAPI</span>
-                <span class="tech-tag">Node.js</span>
-                <span class="tech-tag">JWT</span>
-                <span class="tech-tag">Qdrant</span>
-                <span class="tech-tag">Google Maps API</span>
-                <span class="tech-tag">OAuth2</span>
-                <span class="tech-tag">OpenAI API</span>
-                <span class="tech-tag">AWS (EC2, S3)</span>
-                <span class="tech-tag">MongoDB</span>
-              </div>
-            </div>
-
-            <div class="experience-card">
-              <div class="experience-header">
-                <h3 class="experience-title">Data Specialist</h3>
-                <p class="experience-company">LMU Career and Professional Development Department</p>
-                <p class="experience-date">August 2024 - May 2025</p>
-              </div>
-              <div class="tech-tags">
-                <span class="tech-tag">ETL Pipelines</span>
-                <span class="tech-tag">Data Analysis</span>
-                <span class="tech-tag">Python</span>
-                <span class="tech-tag">SQL</span>
-              </div>
-            </div>
-
-            <div class="experience-card">
-              <div class="experience-header">
-                <h3 class="experience-title">Junior Software Engineer</h3>
-                <p class="experience-company">Nexuslink Services</p>
-                <p class="experience-date">December 2021 - December 2023</p>
-              </div>
-              <div class="tech-tags">
-                <span class="tech-tag">JWT Session Management</span>
-                <span class="tech-tag">REST APIs</span>
-                <span class="tech-tag">React-Redux</span>
-                <span class="tech-tag">ExpressJS</span>
-                <span class="tech-tag">MongoDB</span>
-              </div>
-            </div>
+            ))}
           </div>
 
         </div>
