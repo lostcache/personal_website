@@ -1257,4 +1257,4 @@ Range (min … max):   26.492 s … 26.791 s    10 runs
 ```
 
 Yup, turns out working with mmap over multiple threads does more harm than good
-because of page faults.
+because of page faults. But this is my machine with just 16 GB of RAM (i'm poor) and the mmap will almost certainly be faster with more memory available.
