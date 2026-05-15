@@ -9,9 +9,9 @@ export function remarkReadingTime() {
 
     // Remove code blocks and inline code from the cloned tree
     visit(clonedTree, (node, index, parent) => {
-      if (node.type === 'code' || node.type === 'inlineCode') {
+      if (node.type === "code" || node.type === "inlineCode") {
         // Remove the node by replacing it with nothing
-        if (parent && typeof index === 'number') {
+        if (parent && typeof index === "number") {
           parent.children.splice(index, 1);
           return [visit.SKIP, index];
         }

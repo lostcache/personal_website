@@ -647,13 +647,14 @@ let mut hash = 0 as usize;
 
 }
 
-fn get*file_path() -> std::path::PathBuf {
+fn get\*file_path() -> std::path::PathBuf {
 let args: std::vec::Vec<String> = std::env::args().collect();
 match args.len() {
 2 => std::path::PathBuf::from(&args[1]),
-* => std::path::PathBuf::from("../data/measurements.txt"),
-}
-}
+
+- => std::path::PathBuf::from("../data/measurements.txt"),
+  }
+  }
 
 fn skip_first_line(start: u64, mmap_f: &[u8]) -> u64 {
 assert!(start > 0);
@@ -969,11 +970,11 @@ pub fn main() !void {
 
 </ExpandableCode>
 
-
 The multi-threaded version without:
-1) Mmap
-2) hand-rolled parser for temperature parsing
-3) custom hashmap with lightweight non-cryptographic hash function
+
+1. Mmap
+2. hand-rolled parser for temperature parsing
+3. custom hashmap with lightweight non-cryptographic hash function
 
 is on par with the with the rust and cpp version with all the above optimizations.
 
@@ -981,7 +982,6 @@ If you haven't followed the other code or even if you have let me remind you tha
 mentioned optimization is what brought my solution on par with the challenge winning solution which is in java.
 
 #### and here the zig solution without those optimizations is able to keep up!
-
 
 <ExpandableCode maxHeight="200px">
 
@@ -1219,7 +1219,6 @@ pub fn main() !void {
 
 </ExpandableCode>
 
-
 ```sh
 Time (mean ± σ):     31.507 s ±  0.149 s    [User: 78.501 s, System: 14.278 s]
 Range (min … max):   31.415 s … 31.926 s    10 runs
@@ -1252,7 +1251,6 @@ but using buffered reads from the file.
 
 and... 🥁🥁🥁
 
-
 ```sh
 Time (mean ± σ):     26.683 s ±  0.100 s    [User: 60.712 s, System: 11.416 s]
 Range (min … max):   26.492 s … 26.791 s    10 runs
@@ -1260,4 +1258,3 @@ Range (min … max):   26.492 s … 26.791 s    10 runs
 
 Yup, turns out working with mmap over multiple threads does more harm than good
 because of page faults.
-

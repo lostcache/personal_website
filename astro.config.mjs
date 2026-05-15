@@ -16,13 +16,19 @@ import react from "@astrojs/react";
 export default defineConfig({
   site: "https://harshdevisha.com",
 
-  integrations: [expressiveCode({
-    styleOverrides: {
-      codeFontSize: "15px",
-    },
-  }), mdx({
-    remarkPlugins: [remarkReadingTime],
-  }), sitemap(), icon(), react()],
+  integrations: [
+    expressiveCode({
+      styleOverrides: {
+        codeFontSize: "15px",
+      },
+    }),
+    mdx({
+      remarkPlugins: [remarkReadingTime],
+    }),
+    sitemap(),
+    icon(),
+    react(),
+  ],
 
   vite: {
     plugins: [tailwindcss()],
