@@ -1,6 +1,7 @@
 // @ts-check
 
 import expressiveCode from "astro-expressive-code";
+import { pluginCollapsibleSections } from "@expressive-code/plugin-collapsible-sections";
 import mdx from "@astrojs/mdx";
 import sitemap from "@astrojs/sitemap";
 import { defineConfig } from "astro/config";
@@ -18,6 +19,7 @@ export default defineConfig({
 
   integrations: [
     expressiveCode({
+      plugins: [pluginCollapsibleSections()],
       styleOverrides: {
         codeFontSize: "15px",
       },
