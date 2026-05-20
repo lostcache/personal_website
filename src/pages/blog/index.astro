@@ -6,6 +6,10 @@ import Footer from "../../components/Footer.astro";
 import FormattedDate from "../../components/FormattedDate.astro";
 import Header from "../../components/Header.astro";
 import { SITE_DESCRIPTION, SITE_TITLE } from "../../consts";
+import Card from "../../components/ui/Card.astro";
+import CardContent from "../../components/ui/CardContent.astro";
+import CardTitle from "../../components/ui/CardTitle.astro";
+import CardDescription from "../../components/ui/CardDescription.astro";
 
 const posts = (await getCollection("blog")).sort(
   (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
@@ -26,23 +30,27 @@ const posts = (await getCollection("blog")).sort(
             <li class={index === 0
               ? "w-full mb-4 text-center"
               : "w-[calc(50%-1rem)] max-md:w-full max-md:text-center"}>
-              <a href={`/blog/${post.id}/`} class="block group no-underline">
-                {post.data.heroImage && (
-                  <Image
-                    width={720}
-                    height={360}
-                    src={post.data.heroImage}
-                    alt=""
-                    class={`mb-2 rounded-xl transition-all duration-200 group-hover:shadow-[var(--box-shadow)] ${index === 0 ? "w-full" : ""}`}
-                  />
-                )}
-                <h4 class={`m-0 text-[rgb(var(--black))] leading-none transition-colors duration-200 group-hover:text-[var(--accent)] ${index === 0 ? "text-[2.369rem]" : ""}`}>
-                  {post.data.title}
-                </h4>
-                <p class="m-0 text-[rgb(var(--gray))] transition-colors duration-200 group-hover:text-[var(--accent)]">
-                  Last Updated, <FormattedDate date={post.data.pubDate} />
-                </p>
-              </a>
+              <Card class="transition-all duration-200 hover:shadow-lg">
+                <a href={`/blog/${post.id}/`} class="block group no-underline">
+                  {post.data.heroImage && (
+                    <Image
+                      width={720}
+                      height={360}
+                      src={post.data.heroImage}
+                      alt=""
+                      class={`mb-2 rounded-xl transition-all duration-200 group-hover:shadow-[var(--box-shadow)] ${index === 0 ? "w-full" : ""}`}
+                    />
+                  )}
+                  <CardContent class="p-4">
+                    <CardTitle class={`leading-none transition-colors duration-200 group-hover:text-accent ${index === 0 ? "text-[2.369rem]" : "text-base"}`}>
+                      {post.data.title}
+                    </CardTitle>
+                    <CardDescription class="transition-colors duration-200 group-hover:text-accent">
+                      Last Updated, <FormattedDate date={post.data.pubDate} />
+                    </CardDescription>
+                  </CardContent>
+                </a>
+              </Card>
             </li>
           ))}
         </ul>

@@ -6,6 +6,13 @@ import { SITE_TITLE, SITE_DESCRIPTION } from "../consts";
 import { getCollection } from "astro:content";
 import FormattedDate from "../components/FormattedDate.astro";
 import { Icon } from "astro-icon/components";
+import Card from "../components/ui/Card.astro";
+import CardTitle from "../components/ui/CardTitle.astro";
+import CardDescription from "../components/ui/CardDescription.astro";
+import CardContent from "../components/ui/CardContent.astro";
+import Badge from "../components/ui/Badge.astro";
+import Button from "../components/ui/Button.astro";
+import Separator from "../components/ui/Separator.astro";
 
 const posts = (await getCollection("blog")).sort(
   (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
@@ -51,23 +58,23 @@ const experience = [
 
         <!-- Left: blog posts -->
         <div class="order-2 md:order-1 pl-4 pr-6 flex flex-col h-auto md:h-full md:overflow-hidden">
-          <h2 class="text-left m-0 mb-2 text-[1.2rem] border-b border-[rgb(var(--gray-light))] shrink-0">
+          <h2 class="text-left m-0 mb-2 text-[1.2rem] shrink-0">
             Blogs ({posts.length})
           </h2>
+          <Separator class="mb-4" />
           <div class="thin-scroll grid grid-cols-1 gap-4 overflow-y-visible md:overflow-y-auto flex-1 pb-4 min-h-0 pr-2">
             {posts.map((post) => (
-              <a
-                href={`/blog/${post.id}/`}
-                class="bg-[rgb(var(--gray-light))] dark:bg-[#1a1a1a] rounded-xl p-4 no-underline text-[rgb(var(--black))] dark:text-white border border-black/5 dark:border-[#333] flex flex-col justify-between min-h-fit transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_20px_rgba(0,0,0,0.1)]"
-              >
-                <div>
-                  <h3 class="m-0 text-[1rem] leading-tight mb-[0.2rem] line-clamp-2">{post.data.title}</h3>
-                  <p class="m-0 mb-0 text-[0.85rem] text-[rgb(var(--gray))] leading-tight line-clamp-2">{post.data.description}</p>
-                </div>
-                <div class="text-[0.75rem] text-[rgb(var(--gray))] mt-[0.2rem] opacity-80">
-                  Last Updated, <FormattedDate date={post.data.pubDate} />
-                </div>
-              </a>
+              <Card class="no-underline text-foreground transition-all duration-200 hover:-translate-y-1 hover:shadow-lg cursor-pointer">
+                <a href={`/blog/${post.id}/`} class="block">
+                  <CardContent class="p-4">
+                    <CardTitle class="text-base leading-tight mb-1 line-clamp-2">{post.data.title}</CardTitle>
+                    <CardDescription class="text-sm leading-tight line-clamp-2">{post.data.description}</CardDescription>
+                    <div class="text-xs text-muted-foreground mt-2 opacity-80">
+                      Last Updated, <FormattedDate date={post.data.pubDate} />
+                    </div>
+                  </CardContent>
+                </a>
+              </Card>
             ))}
           </div>
         </div>
@@ -92,61 +99,61 @@ const experience = [
           </div>
 
           <!-- Projects -->
-          <h2 class="text-left m-0 mb-2 text-[1.2rem] font-bold border-b border-[rgb(var(--gray-light))]">Work Collection</h2>
+          <h2 class="text-left m-0 mb-2 text-[1.2rem] font-bold">Work Collection</h2>
+          <Separator class="mb-4" />
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-            <div class="bg-[rgb(var(--gray-light))] dark:bg-[#1a1a1a] rounded-xl p-4 border border-black/5 dark:border-[#333] flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
-              <div>
-                <div class="flex items-center justify-between mb-1">
-                  <h3 class="m-0 text-[1.1rem] font-semibold text-[rgb(var(--black))] dark:text-white">dunno</h3>
-                  <a href="https://github.com/lostcache/dunno" target="_blank" rel="noopener noreferrer" class="text-[rgb(var(--black))] dark:text-white opacity-70 hover:opacity-100 transition-opacity">
+            <Card class="transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+              <CardContent class="p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <CardTitle class="text-[1.1rem]">dunno</CardTitle>
+                  <a href="https://github.com/lostcache/dunno" target="_blank" rel="noopener noreferrer" class="text-muted-foreground hover:text-foreground transition-colors">
                     <Icon name="simple-icons:github" size={20} />
                   </a>
                 </div>
-                <p class="m-0 mb-0 text-[0.85rem] text-[rgb(var(--gray))] leading-snug">
+                <CardDescription class="text-sm leading-snug">
                   CLI + web tool to manage codebase knowledge at file level for AI agents. Graph-structured context with SurrealDB backend, interactive visualization, and REST API.
-                </p>
-              </div>
-              <div class="flex flex-wrap gap-1.5 mt-3">
-                {["Rust", "SurrealDB", "TypeScript", "Graph DB"].map((tag) => (
-                  <span class="bg-black/8 dark:bg-white/10 px-2.5 py-0.5 rounded text-[0.7rem] font-medium text-[rgb(var(--black))] dark:text-white">{tag}</span>
-                ))}
-              </div>
-            </div>
+                </CardDescription>
+                <div class="flex flex-wrap gap-1.5 mt-3">
+                  {["Rust", "SurrealDB", "TypeScript", "Graph DB"].map((tag) => (
+                    <Badge variant="secondary">{tag}</Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           <!-- Experience header -->
           <div class="flex justify-between items-center mb-2">
-            <h2 class="m-0 text-[1.2rem] font-bold border-b border-[rgb(var(--gray-light))] flex-1">Experience</h2>
-            <a
+            <h2 class="m-0 text-[1.2rem] font-bold flex-1">Experience</h2>
+            <Button
+              variant="default"
+              as="a"
               href="/harsh_devisha_resume.pdf"
               target="_blank"
               rel="noopener noreferrer"
-              class="ml-4 px-2 py-1.5 bg-black text-white no-underline rounded-lg text-base font-semibold inline-flex items-center gap-1.5 border-2 border-black transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.2)] dark:bg-white dark:text-black dark:border-white dark:hover:shadow-[0_4px_12px_rgba(255,255,255,0.3)]"
+              class="ml-4"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                <polyline points="15 3 21 3 21 9"></polyline>
-                <line x1="10" y1="14" x2="21" y2="3"></line>
-              </svg>
+              <Icon name="lucide:external-link" size={16} />
               Resume
-            </a>
+            </Button>
           </div>
+          <Separator class="mb-4" />
 
           <!-- Experience cards -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
             {experience.map((exp) => (
-              <div class="bg-[rgb(var(--gray-light))] dark:bg-[#1a1a1a] rounded-xl p-4 border border-black/5 dark:border-[#333] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
-                <div class="mb-3">
-                  <h3 class="m-0 mb-1 text-[1.1rem] font-semibold text-[rgb(var(--black))] dark:text-white">{exp.title}</h3>
-                  <p class="m-0 mb-[0.2rem] text-[0.85rem] text-[rgb(var(--gray))]">{exp.company}</p>
-                  <p class="m-0 text-[0.75rem] text-[rgb(var(--gray))] opacity-70">{exp.date}</p>
-                </div>
-                <div class="flex flex-wrap gap-1.5 mt-3">
-                  {exp.tags.map((tag) => (
-                    <span class="bg-black/8 dark:bg-white/10 px-2.5 py-0.5 rounded text-[0.7rem] font-medium text-[rgb(var(--black))] dark:text-white">{tag}</span>
-                  ))}
-                </div>
-              </div>
+              <Card class="transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                <CardContent class="p-4">
+                  <CardTitle class="text-[1.1rem] mb-1">{exp.title}</CardTitle>
+                  <CardDescription class="text-sm mb-1">{exp.company}</CardDescription>
+                  <p class="text-xs text-muted-foreground opacity-70">{exp.date}</p>
+                  <div class="flex flex-wrap gap-1.5 mt-3">
+                    {exp.tags.map((tag) => (
+                      <Badge variant="secondary">{tag}</Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
 

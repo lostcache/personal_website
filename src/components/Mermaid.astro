@@ -3,7 +3,7 @@ export interface Props {
   chart: string;
 }
 const { chart } = Astro.props;
-const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+const id = `mermaid-${Math.random().toString(36).slice(2, 9)}`;
 ---
 
 <div class="mermaid" id={id} data-original={chart}>{chart}</div>
@@ -30,7 +30,7 @@ const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
 
     const diagrams = document.querySelectorAll('.mermaid:not([data-processed])');
     if (diagrams.length > 0) {
-      await mermaid.run({ nodes: Array.from(diagrams) });
+      await mermaid.run({ nodes: Array.from(diagrams) as HTMLElement[] });
     }
   };
 

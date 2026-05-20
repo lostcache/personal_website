@@ -1,4 +1,7 @@
 ---
+import Button from './ui/Button.astro';
+import { Icon } from "astro-icon/components";
+
 interface Props {
   maxHeight?: string;
 }
@@ -7,101 +10,37 @@ const { maxHeight = "400px" } = Astro.props;
 const id = `ec-${Math.random().toString(36).slice(2, 9)}`;
 ---
 
-<div class="ec-wrap" id={id} style={`--ec-max-h: ${maxHeight}`}>
-  <div class="ec-preview">
+<div class="ec-wrap relative my-6" id={id} style={`--ec-max-h: ${maxHeight}`}>
+  <div class="ec-preview" style={`max-height: var(--ec-max-h); overflow-y: auto;`}>
     <slot />
   </div>
-  <button class="ec-btn ec-open" type="button" aria-label="View full code">
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/>
-    </svg>
+  <Button
+    variant="default"
+    size="sm"
+    class="ec-open absolute bottom-2 right-2"
+  >
+    <Icon name="lucide:maximize-2" size={14} />
     View Full
-  </button>
+  </Button>
 
-  <dialog class="ec-dialog" aria-label="Full code view">
-    <button class="ec-btn ec-close" type="button" aria-label="Close full code view">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-        <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
-      </svg>
-    </button>
-    <div class="ec-dialog-body"></div>
+  <dialog class="ec-dialog fixed inset-0 z-50 bg-background border border-border rounded-lg shadow-lg w-[90vw] max-w-[1400px] h-[90vh] overflow-hidden m-auto" aria-label="Full code view">
+    <Button
+      variant="outline"
+      size="icon"
+      class="ec-close absolute top-3 right-3 z-10"
+    >
+      <Icon name="lucide:x" size={16} />
+    </Button>
+    <div class="ec-dialog-body h-full overflow-auto p-4"></div>
   </dialog>
 </div>
 
 <style>
-  .ec-wrap {
-    position: relative;
-    my: 1.5rem;
-  }
-
-  .ec-preview {
-    max-height: var(--ec-max-h);
-    overflow-y: auto;
-  }
-
-  .ec-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.25rem 0.75rem;
-    font-size: 0.8125rem;
-    border: none;
-    border-radius: 0.25rem;
-    cursor: pointer;
-    transition: background-color 0.15s;
-  }
-
-  .ec-open {
-    position: absolute;
-    bottom: 0.5rem;
-    right: 0.5rem;
-    background: #0066cc;
-    color: #fff;
-    z-index: 1;
-  }
-  .ec-open:hover { background: #0052a3; }
-
-  /* dialog */
-  .ec-dialog {
-    border: none;
-    border-radius: 0.5rem;
-    padding: 0;
-    width: 90vw;
-    max-width: 1400px;
-    height: 90vh;
-    overflow: hidden;
-    background: #1e1e1e;
-    box-shadow: 0 20px 60px rgba(0,0,0,.5);
-    margin: auto;
-  }
-
   .ec-dialog::backdrop {
     background: rgba(0,0,0,.8);
     backdrop-filter: blur(4px);
   }
 
-  .ec-close {
-    position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    background: rgba(255,255,255,.1);
-    color: #fff;
-    width: 2.25rem;
-    height: 2.25rem;
-    padding: 0;
-    justify-content: center;
-    border-radius: 0.25rem;
-    z-index: 1;
-  }
-  .ec-close:hover { background: rgba(255,255,255,.2); }
-
-  .ec-dialog-body {
-    height: 100%;
-    overflow: auto;
-    padding: 1rem;
-  }
-
-  /* inside dialog: remove the max-height cap */
   .ec-dialog-body :global(.ec-preview) {
     max-height: none !important;
   }
@@ -119,20 +58,17 @@ const id = `ec-${Math.random().toString(36).slice(2, 9)}`;
       if (!openBtn || !closeBtn || !dialog || !body || !preview) return;
 
       openBtn.addEventListener('click', () => {
-        // Move preview content into dialog body
         body.appendChild(preview);
         dialog.showModal();
       });
 
       const close = () => {
-        // Move content back to inline position
         wrap.insertBefore(preview, dialog);
         dialog.close();
       };
 
       closeBtn.addEventListener('click', close);
 
-      // Close on backdrop click
       dialog.addEventListener('click', (e) => {
         if (e.target === dialog) close();
       });

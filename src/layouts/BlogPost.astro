@@ -6,6 +6,8 @@ import Footer from "../components/Footer.astro";
 import FormattedDate from "../components/FormattedDate.astro";
 import Header from "../components/Header.astro";
 import Comments from "../components/Comments.astro";
+import Separator from "../components/ui/Separator.astro";
+import Badge from "../components/ui/Badge.astro";
 
 type Props = CollectionEntry<"blog">["data"];
 
@@ -32,21 +34,21 @@ const { title, description, pubDate, updatedDate, heroImage, readingTime } =
             />
           )}
         </div>
-        <div class="prose w-[720px] max-w-[calc(100%-2em)] mx-auto px-4 py-4 text-[rgb(var(--gray-dark))]">
+        <div class="prose w-[720px] max-w-[calc(100%-2em)] mx-auto px-4 py-4 text-foreground">
           <div class="mb-4 py-4 text-center leading-none">
-            <div class="mb-2 text-[rgb(var(--gray))]">
-              Last Updated, <FormattedDate date={pubDate} />
+            <div class="mb-2 text-muted-foreground flex items-center justify-center gap-2">
+              <span>Last Updated, <FormattedDate date={pubDate} /></span>
               {updatedDate && (
-                <div class="italic">
+                <span class="italic">
                   Last updated on <FormattedDate date={updatedDate} />
-                </div>
+                </span>
               )}
               {readingTime && (
-                <span> • {readingTime}</span>
+                <Badge variant="secondary">{readingTime}</Badge>
               )}
             </div>
             <h1 class="m-0 mb-[0.5em]">{title}</h1>
-            <hr />
+            <Separator />
           </div>
           <slot />
           <Comments />
