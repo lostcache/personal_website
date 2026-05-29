@@ -117,8 +117,12 @@ const experience = [
                   </a>
                 </div>
                 <CardDescription class="text-sm leading-snug">
-                  CLI + web tool to manage codebase knowledge at file level for AI agents. Graph-structured context with SurrealDB backend, interactive visualization, and REST API.
-                </CardDescription>
+                  <h4>A cli tool to:</h4>
+                  <ul>
+                    <li>- Manage codebase knowledge at file level to avoid fuzzy reads while vibe-coding.</li>
+                    <li>- Manages TODOs, Tasks, Plans, Skills, Persona and all other md files meant for Agents.</li>
+                  </ul>
+                  </CardDescription>
                 <div class="flex flex-wrap gap-1.5 mt-3">
                   {["Rust", "SurrealDB", "TypeScript", "Graph DB"].map((tag) => (
                     <Badge variant="secondary">{tag}</Badge>
