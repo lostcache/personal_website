@@ -130,6 +130,35 @@ const experience = [
                 </div>
               </CardContent>
             </Card>
+            <Card class="overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+              <img
+                src="/MagicTales_Logo.jpeg"
+                alt="MagicTalesAI logo"
+                class="w-full"
+                loading="lazy"
+              />
+              <CardContent class="p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <CardTitle class="text-[1.1rem]">MagicTalesAI</CardTitle>
+                  <a href="https://github.com/lostcache/MagicTalesAI" target="_blank" rel="noopener noreferrer" class="text-muted-foreground hover:text-foreground transition-colors">
+                    <Icon name="simple-icons:github" size={20} />
+                  </a>
+                </div>
+                <CardDescription class="text-sm leading-snug">
+                  <h4>Interactive audiobooks from PDF/EPUB:</h4>
+                  <ul>
+                    <li>- Generates immersive, interactive audiobooks from PDF/EPUB using Google Gemini models.</li>
+                    <li>- Gemini 2.5 Flash for scene segmentation and TTS character dialog generation.</li>
+                    <li>- Google Lyria for emotion-aware background music, ElevenLabs to clone custom voices.</li>
+                  </ul>
+                </CardDescription>
+                <div class="flex flex-wrap gap-1.5 mt-3">
+                  {["Python", "FastAPI", "React", "GCP", "Google Gemini"].map((tag) => (
+                    <Badge variant="secondary">{tag}</Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           <!-- Experience header -->
