@@ -23,31 +23,29 @@ const posts = (await getCollection("blog")).sort(
   </head>
   <body>
     <Header />
-    <main class="max-w-[960px] w-full mx-auto px-4 py-[3em]">
-      <section>
-        <ul class="flex flex-wrap gap-8 list-none m-0 p-0 max-md:gap-2">
-          {posts.map((post, index) => (
-            <li class={index === 0
-              ? "w-full mb-4 text-center"
-              : "w-[calc(50%-1rem)] max-md:w-full max-md:text-center"}>
-              <Card class="transition-all duration-200 hover:shadow-lg">
-                <a href={`/blog/${post.id}/`} class="block group no-underline">
+    <div class="flex-1 min-h-0 overflow-y-auto">
+    <main class="w-full max-w-full m-0 p-0">
+      <section class="max-w-[960px] w-full mx-auto px-4 py-[3em]">
+        <ul class="grid grid-cols-1 gap-4 list-none m-0 p-0">
+          {posts.map((post) => (
+            <li>
+              <Card class="no-underline text-foreground transition-all duration-200 hover:-translate-y-1 hover:shadow-lg cursor-pointer overflow-hidden">
+                <a href={`/blog/${post.id}/`} class="block group">
                   {post.data.heroImage && (
                     <Image
                       width={720}
                       height={360}
                       src={post.data.heroImage}
                       alt=""
-                      class={`mb-2 rounded-xl transition-all duration-200 group-hover:shadow-[var(--box-shadow)] ${index === 0 ? "w-full" : ""}`}
+                      class="w-full"
                     />
                   )}
                   <CardContent class="p-4">
-                    <CardTitle class={`leading-none transition-colors duration-200 group-hover:text-accent ${index === 0 ? "text-[2.369rem]" : "text-base"}`}>
-                      {post.data.title}
-                    </CardTitle>
-                    <CardDescription class="transition-colors duration-200 group-hover:text-accent">
+                    <CardTitle class="text-base leading-tight mb-1 line-clamp-2 transition-colors duration-200 group-hover:text-accent">{post.data.title}</CardTitle>
+                    <CardDescription class="text-sm leading-tight line-clamp-2">{post.data.description}</CardDescription>
+                    <div class="text-xs text-muted-foreground mt-2 opacity-80">
                       Last Updated, <FormattedDate date={post.data.pubDate} />
-                    </CardDescription>
+                    </div>
                   </CardContent>
                 </a>
               </Card>
@@ -57,5 +55,6 @@ const posts = (await getCollection("blog")).sort(
       </section>
     </main>
     <Footer />
+    </div>
   </body>
 </html>

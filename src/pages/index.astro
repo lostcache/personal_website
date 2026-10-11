@@ -53,16 +53,17 @@ const experience = [
   </head>
   <body>
     <Header />
-    <main class="w-full m-0 py-4 h-auto md:h-[calc(100vh-120px)] md:overflow-hidden">
-      <div class="grid grid-cols-1 md:grid-cols-[25%_75%] h-full">
+    <div class="flex-1 min-h-0 overflow-y-auto">
+    <main class="w-full m-0 py-4">
+      <div class="grid grid-cols-1 md:grid-cols-[25%_75%]">
 
         <!-- Left: blog posts -->
-        <div class="order-2 md:order-1 pl-4 pr-6 flex flex-col h-auto md:h-full md:overflow-hidden">
-          <h2 class="text-left m-0 mb-2 text-[1.2rem] shrink-0">
+        <div class="order-2 md:order-1 pl-4 pr-6">
+          <h2 class="text-left m-0 mb-2 text-[1.2rem]">
             Blogs ({posts.length})
           </h2>
           <Separator class="mb-4" />
-          <div class="thin-scroll grid grid-cols-1 gap-4 overflow-y-visible md:overflow-y-auto flex-1 pb-4 min-h-0 pr-2">
+          <div class="grid grid-cols-1 gap-4 pb-4 pr-2">
             {posts.map((post) => (
               <Card class="no-underline text-foreground transition-all duration-200 hover:-translate-y-1 hover:shadow-lg cursor-pointer">
                 <a href={`/blog/${post.id}/`} class="block">
@@ -80,7 +81,7 @@ const experience = [
         </div>
 
         <!-- Right: intro + projects + experience -->
-        <div class="order-1 md:order-2 pr-4 md:pr-8 overflow-visible md:overflow-y-auto">
+        <div class="order-1 md:order-2 pr-4 md:pr-8">
 
           <!-- Intro -->
           <div class="mb-4 text-center">
@@ -200,5 +201,6 @@ const experience = [
       </div>
     </main>
     <Footer />
+    </div>
   </body>
 </html>
